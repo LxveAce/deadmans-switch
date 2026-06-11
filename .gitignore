@@ -1,0 +1,73 @@
+# ----------------------------------------------------------------------------
+# Suicide Marauder — .gitignore
+# Owner-only DEFENSIVE anti-forensic tool. NEVER commit secrets, passwords, or
+# per-device provisioning output (a guardcfg image embeds a board's salted hash).
+# ----------------------------------------------------------------------------
+
+# ---- build outputs / bundles ----
+build/
+dist/
+out/
+*.bin            # app/partitions/bootloader/boot_app0/guardcfg bundles are build artifacts
+*.elf
+*.map
+*.uf2
+*.hex
+
+# ---- ESP-IDF ----
+sdkconfig
+sdkconfig.old
+sdkconfig.*.old
+managed_components/
+dependencies.lock
+/build/
+**/build/
+
+# ---- PlatformIO ----
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# ---- arduino-cli ----
+*.ino.bin
+*.ino.bootloader.bin
+*.ino.partitions.bin
+*.ino.elf
+*.ino.map
+.arduino-cli/
+
+# ---- Python host tooling ----
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- secrets / per-device provisioning (NEVER commit) ----
+# guardcfg images embed the salted password hash + arm config for a specific board.
+guardcfg.bin
+otadata*.bin
+bundle.json
+nvs_config.csv          # generated; may reveal arm pin/level config
+nvs_keys*.bin           # T2 NVS-encryption key partition
+secrets/
+*.key
+*.pem
+*.secret
+provisioning/
+*.duress
+
+# ---- editor / OS ----
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
