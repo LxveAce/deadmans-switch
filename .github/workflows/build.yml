@@ -17,7 +17,7 @@ name: build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
     tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
@@ -69,10 +69,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install arduino-cli
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh -s
-          echo "$PWD/bin" >> "$GITHUB_PATH"
+      # Use the official action: installs arduino-cli and puts it on PATH for every later step
+      # (the previous hand-rolled `curl | sh` + `echo $PWD/bin >> $GITHUB_PATH` was unreliable —
+      # the binary was not found by the next step).
+      - name: Set up arduino-cli
+        uses: arduino/setup-arduino-cli@v2
 
       - name: Install ESP32 core
         run: |
@@ -82,19 +83,15 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install "esp32:esp32@${ESP32_CORE_VERSION}"
 
-      - name: Fetch ESP32Marauder sketch (FORK only)
+      - name: Integrate boot-gate into Marauder sketch (FORK only)
         if: matrix.variant == 'fork'
         run: |
+          set -euo pipefail
           git clone --depth 1 https://github.com/justcallmekoko/ESP32Marauder.git "$RUNNER_TEMP/marauder"
-          # Apply the gate hook + drop the bootgate sources into the sketch, per
-          # firmware/integration/INTEGRATION.md (anchored on display_obj.RunSetup() /
-          # settings_obj.begin(); NOT line numbers). The patch tool is added by the integration
-          # scaffold task; if it isn't present yet this leg is allowed to soft-fail (see below).
-          if [ -x firmware/integration/apply_hook.sh ]; then
-            firmware/integration/apply_hook.sh "$RUNNER_TEMP/marauder" firmware/bootgate
-          else
-            echo "::warning::firmware/integration/apply_hook.sh not present yet — building gate sources standalone is not possible for FORK; this leg will report the missing integration tool."
-          fi
+          # Copy firmware/bootgate into the sketch + apply the fail-closed setup() hook, per
+          # firmware/integration/INTEGRATION.md. apply_hook.sh hard-fails if the patch does not land,
+          # so a broken integration surfaces here instead of silently shipping un-gated firmware.
+          bash firmware/integration/apply_hook.sh "$RUNNER_TEMP/marauder" firmware/bootgate
           echo "MARAUDER_SKETCH=$RUNNER_TEMP/marauder/esp32_marauder" >> "$GITHUB_ENV"
 
       - name: Build SAFE_MODE bundle
@@ -132,7 +129,7 @@ jobs:
         run: |
           dir="build/${{ matrix.board }}_${{ matrix.variant }}_${{ matrix.tier }}"
           cat > "$dir/BUNDLE-INFO.txt" <<EOF
-          Suicide Marauder CI bundle (SAFE_MODE — simulate only, NOT a live-brick build)
+          Dead Man's Switch CI bundle (SAFE_MODE — simulate only, NOT a live-brick build)
           board   : ${{ matrix.board }}
           fqbn    : ${{ matrix.fqbn }}
           variant : ${{ matrix.variant }}
@@ -183,5 +180,5 @@ jobs:
         with:
           files: out/*.zip
           body: |
-            Suicide Marauder per-board bundles — **all built in SAFE_MODE** (simulate only).
+            Dead Man's Switch per-board bundles — **all built in SAFE_MODE** (simulate only).
             These are NOT live-brick images. See docs/SAFETY.md before flashing or arming.

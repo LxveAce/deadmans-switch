@@ -23,7 +23,7 @@ param(
   [ValidateSet('esp32','esp32s2','esp32s3','esp32c3','esp32c6')] [string] $Board = 'esp32',
   [ValidateSet('fork','guardian')]                              [string] $Variant = 'fork',
   [ValidateSet('T1','T2')]                                      [string] $Tier = 'T1',
-  [ValidateSet('serial','touch','mini_kb','cardputer','buttons')] [string] $Input = 'serial',
+  [ValidateSet('serial','touch','mini_kb','cardputer','buttons')] [Alias('Input')] [string] $InputMethod = 'serial',
   [ValidateSet('arduino-cli','pio')]                            [string] $Backend = 'arduino-cli',
   [switch] $SafeMode,
   [switch] $NoSafeMode,
@@ -66,7 +66,7 @@ if ($Safe) {
   }
 }
 
-switch ($Input) {
+switch ($InputMethod) {
   'serial'    { $Defs.Add('-DGATE_INPUT_SERIAL') }
   # touch reuses Marauder's real touch_keyboard_obj (TouchKeyboard.h); GateInput_touch.cpp #errors
   # without SUICIDE_HAVE_TOUCH_KEYBOARD_OBJ. Correct here because this builds the FORK against the
@@ -108,7 +108,7 @@ Write-Host " Suicide Marauder build"
 Write-Host "   board     : $Board   (fqbn: $Fqbn)"
 Write-Host "   variant   : $Variant"
 Write-Host "   tier      : $Tier   (brick default = $BrickDefault)"
-Write-Host "   input     : $Input"
+Write-Host "   input     : $InputMethod"
 $safeNote = if ($Safe) { '(simulate only — nothing is destroyed)' } else { '(REAL DESTRUCT CHAIN)' }
 Write-Host "   SAFE_MODE : $Safe  $safeNote"
 Write-Host "   backend   : $Backend"
