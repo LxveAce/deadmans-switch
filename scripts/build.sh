@@ -167,20 +167,28 @@ command -v arduino-cli >/dev/null 2>&1 || die "arduino-cli not found on PATH"
 SKETCH_DIR="${SKETCH:-${REPO_ROOT}/firmware/guardian}"   # GUARDIAN sketch lives in-repo
 [[ -d "$SKETCH_DIR" ]] || die "sketch dir not found: $SKETCH_DIR"
 
-# arduino-cli only compiles sources INSIDE the sketch dir. guardian.ino #includes the shared bootgate
-# (BootGate.h/.cpp under firmware/bootgate), so for the GUARDIAN variant we stage the sketch + bootgate
-# into a temp sketch dir (named like the .ino) so both the header and its .cpp are present and compiled.
-# (The FORK variant already injects bootgate into the Marauder sketch via apply_hook.sh.)
+# guardian.ino #includes the shared bootgate component. arduino-cli reliably compiles AND links a sketch
+# against a LIBRARY (it pulls the whole library archive in addition to the esp32 core + IDF libs).
+# Dumping the bootgate .cpp loose into the sketch folder did NOT link the core/IDF or all sibling
+# objects (undefined refs to main/pinMode/nvs_*/mbedtls_* + half the suicide:: symbols). So for the
+# GUARDIAN variant we stage a clean sketch-only dir + stage bootgate as a proper Arduino library
+# (src/ layout) passed via --library. (The FORK variant injects bootgate into the Marauder sketch via
+# apply_hook.sh, so it does not use this path.)
+EXTRA_LIB_ARGS=()
 if [[ "$VARIANT" == "guardian" ]]; then
   _ino="$(basename "$(find "$SKETCH_DIR" -maxdepth 1 -name '*.ino' | head -n1)" .ino)"
   [[ -n "$_ino" ]] || die "no .ino found in guardian sketch dir $SKETCH_DIR"
-  STAGE="$(mktemp -d)/${_ino}"
-  mkdir -p "$STAGE"
-  cp -r "$SKETCH_DIR"/. "$STAGE"/
+  _stage="$(mktemp -d)"
+  _sketch_stage="${_stage}/${_ino}"; mkdir -p "$_sketch_stage"
+  cp -r "$SKETCH_DIR"/. "$_sketch_stage"/
   if [[ -d "${REPO_ROOT}/firmware/bootgate" ]]; then
-    cp "${REPO_ROOT}/firmware/bootgate/"*.h "${REPO_ROOT}/firmware/bootgate/"*.cpp "$STAGE"/ 2>/dev/null || true
+    _lib="${_stage}/BootGate"; mkdir -p "$_lib/src"
+    cp "${REPO_ROOT}/firmware/bootgate/"*.h "${REPO_ROOT}/firmware/bootgate/"*.cpp "$_lib/src/"
+    printf 'name=BootGate\nversion=1.0.0\narchitectures=esp32\ncategory=Other\nincludes=BootGate.h\n' \
+      > "$_lib/library.properties"
+    EXTRA_LIB_ARGS=(--library "$_lib")
   fi
-  SKETCH_DIR="$STAGE"
+  SKETCH_DIR="$_sketch_stage"
 fi
 
 # arduino-cli takes a single --build-property gcc flags string; join our -D defines.
@@ -209,6 +217,7 @@ arduino-cli compile \
   --fqbn "$FQBN" \
   --export-binaries \
   --output-dir "$OUT" \
+  "${EXTRA_LIB_ARGS[@]}" \
   "${BUILD_PROPS[@]}" \
   "$SKETCH_DIR"
 
