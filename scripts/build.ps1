@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   build.ps1 — build a Suicide Marauder firmware image (Windows / PowerShell).
 
