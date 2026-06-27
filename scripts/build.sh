@@ -169,9 +169,21 @@ SKETCH_DIR="${SKETCH:-${REPO_ROOT}/firmware/guardian}"   # GUARDIAN sketch lives
 
 # arduino-cli takes a single --build-property gcc flags string; join our -D defines.
 EXTRA_FLAGS="${DEFS[*]}"
+
+# Register our custom partition table under the name the ESP32 core expects. arduino-esp32 resolves
+# `build.partitions=<name>` to `<core>/tools/partitions/<name>.csv` (there is NO `build.custom_partitions`
+# property), so the CSV must physically exist there as suicide.csv before compiling — otherwise the
+# core's `cp tools/partitions/suicide.csv` recipe step fails. THAT was the CI build failure.
+ARDUINO_DATA="$(arduino-cli config get directories.data 2>/dev/null || true)"
+[[ -z "$ARDUINO_DATA" ]] && ARDUINO_DATA="${HOME}/.arduino15"
+_registered=0
+for pdir in "$ARDUINO_DATA"/packages/esp32/hardware/esp32/*/tools/partitions; do
+  if [[ -d "$pdir" ]]; then cp "$PART_CSV" "$pdir/suicide.csv"; _registered=1; fi
+done
+[[ $_registered -eq 1 ]] || die "could not find an installed esp32 core partitions dir to register $(basename "$PART_CSV") as suicide.csv (is the esp32 core installed?)"
+
 BUILD_PROPS=(
   "--build-property" "build.partitions=suicide"
-  "--build-property" "build.custom_partitions=${PART_CSV}"
   "--build-property" "compiler.cpp.extra_flags=${EXTRA_FLAGS}"
   "--build-property" "compiler.c.extra_flags=${EXTRA_FLAGS}"
 )
