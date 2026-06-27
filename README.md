@@ -10,6 +10,29 @@ Successor to [Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder), th
 
 ---
 
+<!-- STATUS-ROADMAP:START -->
+## Status & Roadmap
+
+**Status:** v1.0.0 is shipped with downloadable cross-platform provisioner binaries; the provisioner release pipeline is green. Overall health is steady-but-in-progress — firmware is hardware-validated on classic ESP32 (CYD) only, and the firmware build CI is being brought back online.
+
+**In progress / known issues:**
+- Firmware build CI is being repaired and re-enabled (it is currently dormant due to a build-config mismatch).
+- The Fork-variant integration tooling (`firmware/integration/apply_hook.sh`) is being authored so the Fork build path is fully reproducible.
+- Stage-3 boot-chain handling is validated only on classic ESP32; validation on S2/S3/C3/C6 is pending on sacrificial hardware.
+- Windows installer / distributable for the [Cyber Controller](https://github.com/LxveAce/cyber-controller) flasher front end is in progress (reliability + first-run packaging).
+- Documentation cleanup: a single canonical serial-command contract is being defined in `docs/SPEC.md` so README, CHANGELOG, firmware, and Cyber Controller agree.
+
+**Roadmap:**
+- **Tails OS (amnesiac) flashing** — a host/PC-side imaging flow to write the official Tails image to a removable disk, with mandatory image signature/checksum verification and removable, non-system target confirmation before any write.
+- **"Physical key" access gate** — an access gate protecting host/software use, requiring an admin password and/or a minted USB key present (defaults to fail-closed; AND is the high-assurance default, OR is an explicit convenience option).
+- Define one canonical serial-command contract in `docs/SPEC.md`.
+- Ship `firmware/integration/apply_hook.sh` as a documented Fork integration tool.
+- Reconcile install/run docs across the prebuilt binaries and `host/provision.py` from source.
+- Expand validated board/firmware support beyond classic ESP32.
+<!-- STATUS-ROADMAP:END -->
+
+---
+
 ## What it does
 
 A firmware-agnostic **dead-man gate** that sits between power-on and your security firmware. If the operator cannot authenticate — or the hardware kill line is cut — the device obliterates its own flash, SD card, and (optionally) its boot chain before anything can be recovered.
