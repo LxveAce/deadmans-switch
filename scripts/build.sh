@@ -167,6 +167,22 @@ command -v arduino-cli >/dev/null 2>&1 || die "arduino-cli not found on PATH"
 SKETCH_DIR="${SKETCH:-${REPO_ROOT}/firmware/guardian}"   # GUARDIAN sketch lives in-repo
 [[ -d "$SKETCH_DIR" ]] || die "sketch dir not found: $SKETCH_DIR"
 
+# arduino-cli only compiles sources INSIDE the sketch dir. guardian.ino #includes the shared bootgate
+# (BootGate.h/.cpp under firmware/bootgate), so for the GUARDIAN variant we stage the sketch + bootgate
+# into a temp sketch dir (named like the .ino) so both the header and its .cpp are present and compiled.
+# (The FORK variant already injects bootgate into the Marauder sketch via apply_hook.sh.)
+if [[ "$VARIANT" == "guardian" ]]; then
+  _ino="$(basename "$(find "$SKETCH_DIR" -maxdepth 1 -name '*.ino' | head -n1)" .ino)"
+  [[ -n "$_ino" ]] || die "no .ino found in guardian sketch dir $SKETCH_DIR"
+  STAGE="$(mktemp -d)/${_ino}"
+  mkdir -p "$STAGE"
+  cp -r "$SKETCH_DIR"/. "$STAGE"/
+  if [[ -d "${REPO_ROOT}/firmware/bootgate" ]]; then
+    cp "${REPO_ROOT}/firmware/bootgate/"*.h "${REPO_ROOT}/firmware/bootgate/"*.cpp "$STAGE"/ 2>/dev/null || true
+  fi
+  SKETCH_DIR="$STAGE"
+fi
+
 # arduino-cli takes a single --build-property gcc flags string; join our -D defines.
 EXTRA_FLAGS="${DEFS[*]}"
 
