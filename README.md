@@ -83,18 +83,25 @@ The Guardian standalone gate was hardware-validated on a blank classic ESP32 —
 
 ---
 
-## Planned Board & Firmware Support
+## Board & Firmware Support
 
-| Target | Firmware / Use Case |
-|--------|---------------------|
-| **ESP32-S3** | Marauder S3, Bruce S3 |
-| **ESP32-C3** | Compact boards |
-| **ESP32-C6** | Thread / Zigbee boards |
-| **Flipper Zero** | Via companion app |
-| **Raspberry Pi Pico W** | Standalone gate |
-| **Any ESP32-based firmware** | GhostESP, HaleHound, Meshtastic, and others via Guardian variant |
+**Full matrix → [`docs/FIRMWARE-SUPPORT.md`](docs/FIRMWARE-SUPPORT.md)** (every Cyber Controller firmware
+profile mapped to its gate-support status, honest about shipped vs. unvalidated vs. out-of-scope).
 
-The Guardian variant is inherently firmware-agnostic — it gates boot at the factory partition level and jumps to whatever firmware lives in OTA. Adding a new board means adding its chip-specific ROM SPI entry points and partition layout; the gate logic itself is universal.
+Quick version:
+
+| | Status |
+|---|---|
+| **Shipped + hardware-validated** | Marauder **FORK** on **classic ESP32** (CYD 2432S028 + blank dev board: wrong-password ×2 wiped flash to `0xFF`). |
+| **Provisionable, not yet HW-validated** | ESP32-S2 / S3 / C3 / C5 / C6 (the stage-3 self-brick falls back to `esp_flash` off classic ESP32). C5 is now provisionable (0x2000 bootloader). |
+| **Architecturally supported (GUARDIAN), not yet wired** | *Any* ESP32 firmware in `ota_0` — GhostESP, Bruce, HaleHound, Meshtastic, ESP32-DIV, … (needs 8 MB+). |
+| **Out of scope (not an ESP32 boot-gate problem)** | Non-ESP32 targets: RTL8720/BW16 (Realtek AmebaD), Flipper Zero (STM32), Raspberry Pi SD images, Orbic/ADB. |
+
+The **Guardian** variant is firmware-agnostic — it gates boot at the `factory` partition and jumps to whatever
+firmware lives in `ota_0`, so adding a new *ESP32* firmware needs no source changes (see the matrix doc §4).
+The **Fork** variant integrates directly into ESP32 Marauder for tighter coupling and fits 4 MB. Adding a new
+*chip* means adding its ROM-SPI entry points + partition offsets; adding a non-ESP32 *platform* means a
+separate, platform-native mechanism, not a port of this gate.
 
 ---
 

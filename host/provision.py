@@ -55,11 +55,18 @@ _NS_TYPE = "namespace"
 # ----------------------------------------------------------------------------------------------
 
 # Supported chip families (esptool --chip names).
-CHIPS = ("esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2")
+# esp32c5 is host-provisionable here (HARDWARE.md section 8 documents `--chip esp32c5`); its 2nd-stage
+# bootloader sits at the third offset 0x2000 (see _BOOTLOADER_AT_2000). Note: the Arduino *firmware*
+# build (scripts/build.*) does not yet target C5 — its Marauder port is still upstream WIP — so a C5
+# guardcfg/bundle can be minted here but the forked app must be built once the C5 core/port lands.
+CHIPS = ("esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c5", "esp32c6", "esp32h2")
 
-# Chips whose 2nd-stage bootloader lives at 0x0 (S3 + RISC-V) vs 0x1000 (classic ESP32 / S2).
-# SPEC section 2: "2nd-stage bootloader offset | classic ESP32 / S2 = 0x1000 | S3/C3/C6/H2 = 0x0".
+# 2nd-stage bootloader offset is a THREE-way branch (SPEC section 2 + HARDWARE.md section 4 notes):
+#   classic ESP32 / S2  -> 0x1000   (the default below)
+#   S3 / C3 / C6 / H2   -> 0x0      (_BOOTLOADER_AT_0)
+#   C5 / P4 / H4        -> 0x2000   (_BOOTLOADER_AT_2000) — do NOT hard-branch 0x0-vs-0x1000.
 _BOOTLOADER_AT_0 = {"esp32s3", "esp32c3", "esp32c6", "esp32h2"}
+_BOOTLOADER_AT_2000 = {"esp32c5", "esp32p4", "esp32h4"}
 
 # Fixed offsets (SPEC section 2 / section 10): partition table @0x8000, app @0x10000.
 PARTITIONS_OFFSET = 0x8000
@@ -73,13 +80,19 @@ _STRAPPING_PINS = {
     "esp32s2": {0, 45, 46},
     "esp32s3": {0, 3, 45, 46},
     "esp32c3": {2, 8, 9},
+    "esp32c5": {8, 9},  # provisional — C5 strapping not fully public yet (HARDWARE.md section 8.2)
     "esp32c6": {8, 9, 15},
     "esp32h2": {8, 9, 25},
 }
 
 
 def bootloader_offset(chip):
-    """Return the 2nd-stage bootloader flash offset for `chip` (SPEC section 2)."""
+    """Return the 2nd-stage bootloader flash offset for `chip` (SPEC section 2; three-way).
+
+    classic ESP32 / S2 -> 0x1000; S3 / C3 / C6 / H2 -> 0x0; C5 / P4 / H4 -> 0x2000.
+    """
+    if chip in _BOOTLOADER_AT_2000:
+        return 0x2000
     return 0x0 if chip in _BOOTLOADER_AT_0 else 0x1000
 
 
@@ -528,7 +541,7 @@ def build_manifest_files(args, parts, guardcfg, otadata):
     """Build the COMPLETE ordered `files` list for the flash bundle (SPEC section 10).
 
     The flasher writes EXACTLY this list in a single write_flash pass:
-        bootloader.bin   @ 0x0 (s3/c3/c6/h2) or 0x1000 (classic/S2)   -- chip-derived
+        bootloader.bin   @ 0x0 (s3/c3/c6/h2) / 0x2000 (c5) / 0x1000 (classic/S2)  -- chip-derived
         partitions.bin   @ 0x8000                                     -- fixed
         app.bin          @ 0x10000                                    -- fixed
         guardcfg.bin     @ <guardcfg offset from CSV>                 -- READ from CSV
@@ -673,7 +686,8 @@ def build_arg_parser():
     p.add_argument(
         "--chip", choices=CHIPS, default="esp32",
         help="target chip family (default esp32). Selects the bootloader offset (0x0 on "
-             "s3/c3/c6/h2, else 0x1000) and chip-aware strapping-pin warnings (SPEC section 2/7).",
+             "s3/c3/c6/h2, 0x2000 on c5, else 0x1000) and chip-aware strapping-pin warnings "
+             "(SPEC section 2/7).",
     )
     p.add_argument(
         "--build-dir", default=None, metavar="DIR",
