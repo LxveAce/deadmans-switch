@@ -19,7 +19,7 @@ This file is the single source of truth to resume. Append-only sections below; n
   it has no auto-reset.** Workarounds attempted (manual DTR/RTS classic reset, 10 connect-attempts) all
   failed. Until then COM3 can only be read over serial (running firmware identified), not flashed.
 
-## TOOLCHAIN (set up this session, all under `C:\Users\extra\projects\_smbuild\`)
+## TOOLCHAIN (set up this session, all under `<HOME>\projects\_smbuild\`)
 - `arduino-cli.exe` 1.5.1 (`_smbuild/tools/`), data dir `_smbuild/a15` (`ARDUINO_DIRECTORIES_DATA`).
 - esp32 Arduino core **2.0.11** (the version Marauder's CI pins; `package_esp32_dev_index.json`).
 - 16 pinned Marauder libs cloned to `_smbuild/libs/` (TFT_eSPI V2.5.34 cyd_micro setup, NimBLE 1.3.8,

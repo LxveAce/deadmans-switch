@@ -2,7 +2,7 @@
 
 > **Scope:** additive only. Plain Marauder stays the core/default behavior. Every change here is
 > behind a checkbox that is **off** by default. This implements SPEC §11 and §12.
-> **Target repo:** `C:\Users\extra\projects\headless-marauder-gui` (`LxveAce/headless-marauder-gui`).
+> **Target repo:** `<HOME>\projects\headless-marauder-gui` (`LxveAce/headless-marauder-gui`).
 > **Owner-only DEFENSIVE tool.** Plaintext passwords are hashed host-side and the buffer is
 > zeroized — never stored, never logged, never passed on a CLI argv.
 

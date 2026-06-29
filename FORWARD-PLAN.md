@@ -28,7 +28,7 @@
 | arduino-cli not on PATH for "Install ESP32 core" | `.github/workflows/build.yml:72-83` | P1 | All 5 legs failed here on the v1.0.0 run. |
 | FORK legs call missing `apply_hook.sh` | `build.yml:93-97`; `firmware/integration/` (file absent) | P2 | FORK legs can't build; build.sh also exits with no `MARAUDER_SKETCH`. |
 | Serial-command contract unspecified in SPEC, divergent across docs | `docs/SPEC.md` (no SM_* section); `README.md:48`; `CHANGELOG.md:22`; cyber-controller `deadman_auth.py` | P2 | README/CHANGELOG list SM_* verbs the canonical SPEC never defines; controller uses a different token set. |
-| flasher-integration/PLAN.md points at wrong/stale target | `flasher-integration/PLAN.md:6`; `docs/SPEC.md:369` | P2 | Integration actually shipped in cyber-controller; path `C:\Users\extra` isn't this machine. |
+| flasher-integration/PLAN.md points at wrong/stale target | `flasher-integration/PLAN.md:6`; `docs/SPEC.md:369` | P2 | Integration actually shipped in cyber-controller; path `<HOME>` isn't this machine. |
 | PLAN.md `build_bundle()` signature mismatch | `PLAN.md:184-194` vs `host/provision.py:794` | P3 | PLAN uses kwargs; real fn is `build_bundle(args, pw_buf)`. cyber-controller calls it correctly. |
 | Release assets branded with predecessor name | release v1.0.0 assets `suicide-marauder-provisioner-*` | P3 | Rename to `deadmans-switch-*` for identity clarity. |
 | README (source script) vs shipped compiled binaries unreconciled | README Quickstart 4 + `host/requirements.txt` vs release binaries | P3 | Two undocumented-against-each-other install paths. |
