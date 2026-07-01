@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# provision.py - Suicide Marauder host-side provisioner.
+# provision.py - Dead Man's Switch host-side provisioner.
 #
 # Owner-only, DEFENSIVE anti-forensic ("duress") tooling for an ESP32 Marauder the operator owns.
 # This script bakes a per-device `guardcfg` NVS partition image plus a blank otadata blob and a
@@ -659,7 +659,7 @@ def build_arg_parser():
     p = argparse.ArgumentParser(
         prog="provision.py",
         description=(
-            "Suicide Marauder host provisioner. Bakes the per-device guardcfg NVS image, a blank "
+            "Dead Man's Switch host provisioner. Bakes the per-device guardcfg NVS image, a blank "
             "otadata blob, and a flash bundle manifest. The password is read interactively via "
             "getpass and is NEVER accepted on the command line or logged."
         ),

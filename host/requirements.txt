@@ -1,4 +1,4 @@
-# host/requirements.txt -- Suicide Marauder host provisioner dependencies.
+# host/requirements.txt -- Dead Man's Switch host provisioner dependencies.
 #
 # provision.py itself uses only the Python 3.9+ standard library for everything security-relevant
 # (getpass, os.urandom, hashlib.pbkdf2_hmac, csv, json, argparse). argon2 is NOT used: OWASP's
