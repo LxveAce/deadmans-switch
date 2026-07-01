@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GPIO dead-man switch** — hardware arming line tied to a GPIO pin. Cut the wire, unplug, or tamper and the board wipes.
 - **Brownout hardening** — multi-layer protection: hardware brownout detection, ADC-based voltage monitoring, brownout event logging to NVS, fast_wipe prioritization.
 - **Fast wipe mode** — skip SD wipe, go straight to flash erase + boot brick in seconds. Designed for battery-powered or brownout-prone deployments.
-- **Dashboard hooks** — serial command interface (`SM_STATUS`, `SM_INFO`, `SM_ARM`, `SM_DISARM`, `SM_SET_PASSWORD`, `SM_WIPE`) for remote management by Cyber Controller or any host tool.
+- **Dashboard hooks** — serial command interface for remote management by Cyber Controller or any host tool. Read-only `SM_STATUS` / `SM_INFO` return device state and firmware/hardware info; `SM_WIPE` routes into the password-authenticated wipe flow. `SM_ARM` / `SM_DISARM` / `SM_SET_PASSWORD` are recognized but reply that they require re-provisioning from the host (the `armed` flag and password hash live in the `guardcfg` NVS image, which is not modifiable at runtime) — they are not runtime-functional in this release.
 - **T1/T2 tier system** — T1 (default): data-wipe, reflashable. T2 (opt-in, IRREVERSIBLE): Secure Boot v2 + Flash Encryption + eFuse burn.
 - **Host provisioning tool** — `host/provision.py` builds `guardcfg.bin` + `bundle.json` manifest. Password via stdin/getpass, never argv.
 - **Build scripts** — `scripts/build.ps1` (Windows) and `scripts/build.sh` (Linux/macOS) with parameterized board/variant/tier/safe-mode options.

@@ -259,6 +259,28 @@ Invariants:
 - `att_ct == 0` never triggers; `max_att` is clamped ≥ 1 (§4.1).
 - Host-wipe requires a correct password (above). No other unauthenticated destruct trigger exists.
 
+### 6.1 Serial dashboard commands (`SM_` protocol)
+
+On a headless (`GATE_INPUT_SERIAL`) build the gate also answers a small dashboard protocol used by
+[Cyber Controller](https://github.com/LxveAce/cyber-controller) and any host tool. Source of truth:
+`firmware/bootgate/GateInput_serial.cpp` (`dashboard::processCommand`). Commands are **case-insensitive**,
+CR/LF-terminated; responses are a single JSON line prefixed with `SM>`. `SM_` commands are processed
+**before** the password loop and are **never counted as a password attempt**.
+
+| Command | Auth | Behavior |
+|---------|------|----------|
+| `SM_STATUS` | none (read-only) | Emits `SM>{"cmd":"STATUS",...}`: `provisioned`, `armed`, `deadman`, `max_att`, and the runtime `att_ct` / `wipe_armed` / `resume_count`. |
+| `SM_INFO` | none (read-only) | Emits `SM>{"cmd":"INFO",...}`: `fw_version`, `arm_pin`/`arm_level`/`arm_pull`, the `wipe_*` flags, `sd_passes`, `kdf_iter`, `sd_present`, `brownout_count`, and detected `board`. |
+| `SM_WIPE` | **password** | Routes into the authenticated `wipe` flow (§6): the gate prompts for the password and triggers `SelfDestruct` **only** on a correct password (a wrong one counts as a failed attempt). Only meaningful when master-armed. |
+| `SM_ARM` | — (deferred) | Recognized, returns `{"error":...}`: arming requires re-provisioning from the host (`provision.py --armed 1`). The `armed` flag lives in the `guardcfg` NVS image and cannot be changed at runtime. |
+| `SM_DISARM` | — (deferred) | Recognized, returns `{"error":...}`: disarming requires re-provisioning (`provision.py --armed 0`). |
+| `SM_SET_PASSWORD` | — (deferred) | Recognized, returns `{"error":...}`: a password change requires re-provisioning (new salt + hash). **Not implemented in firmware** — it does not modify `guardcfg` at runtime. |
+
+Notes:
+- There is **no** `SM_FW_VERSION` command. The firmware version is only the `fw_version` field inside the `SM_INFO` response.
+- Only `SM_STATUS`, `SM_INFO`, and `SM_WIPE` are functional; `SM_ARM` / `SM_DISARM` / `SM_SET_PASSWORD` are recognized-but-deferred and reply that they need a host re-provision.
+- The gate's own input primitives are unchanged (§5/§6): a bare line or `unlock <pw>` is the password; `wipe` is the authenticated host-wipe. These are not `SM_` commands.
+
 ---
 
 ## 7. Per-board arming pin map (defaults; never a strapping pin)

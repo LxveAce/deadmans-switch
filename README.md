@@ -70,7 +70,7 @@ The full state machine, NVS schema, and invariants are defined in [`docs/SPEC.md
 - **GPIO dead-man switch** — hardware arming line tied to a GPIO pin. Cut the wire, unplug, or tamper — the board wipes. Host tooling rejects non-fail-safe pull/level combinations.
 - **Brownout hardening** — hardware brownout detection, ADC voltage monitoring, brownout event logging to NVS, and fast-wipe prioritization. A low-voltage boot **suppresses destruction but still requires the correct password** — no free gate skip.
 - **Fast wipe mode** — skip the SD wipe and go straight to flash erase + boot brick in seconds. Designed for battery-powered or brownout-prone deployments.
-- **Dashboard hooks** — serial command interface (`SM_STATUS`, `SM_INFO`, `SM_FW_VERSION`, `SM_ARM`, `SM_DISARM`, `SM_SET_PASSWORD`, `SM_WIPE`) for remote management by [Cyber Controller](https://github.com/LxveAce/cyber-controller) or any host tool. Arm/disarm/set-password/wipe are password-authenticated.
+- **Dashboard hooks** — serial command interface for remote management by [Cyber Controller](https://github.com/LxveAce/cyber-controller) or any host tool. `SM_STATUS` and `SM_INFO` are read-only queries; `SM_WIPE` routes into the password-authenticated wipe flow. `SM_ARM` / `SM_DISARM` / `SM_SET_PASSWORD` are recognized but reply that they require re-provisioning from the host — the `armed` flag and password hash live in the `guardcfg` NVS image and are not modifiable at runtime. There is no `SM_FW_VERSION` command; the firmware version is a field inside the `SM_INFO` response. See [`docs/SPEC.md`](docs/SPEC.md) §6.1 for the canonical command table.
 - **Multiple input backends** — serial (default, headless), on-screen touch keypad, M5StickC buttons, M5Cardputer QWERTY, and Marauder Mini joystick gate-input drivers.
 
 ---
@@ -139,7 +139,7 @@ A real destruct chain requires explicitly passing `--no-safe-mode`, and a live-b
 
 Dead Man's Switch is designed to be integrated into [Cyber Controller](https://github.com/LxveAce/cyber-controller) as a **git submodule**. Cyber Controller provides:
 
-- Remote arm/disarm and status monitoring via serial dashboard
+- Remote status monitoring via the serial dashboard (arm/disarm is applied by re-provisioning, not a runtime toggle)
 - Host-side password provisioning (plaintext never touches the device)
 - One-click flash of Dead Man's Switch builds to connected boards
 - Cross-device coordination — wipe triggers can cascade across multiple devices
