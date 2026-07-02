@@ -120,8 +120,9 @@ size_t extractSecret(const char* trimmed, InputResult& r) {
 
 }  // namespace
 
-// Firmware version for SM_INFO responses. Updated with each release.
-static constexpr const char* SM_FW_VERSION = "1.1.0";
+// Firmware version reported in SM_INFO responses. MUST match the released tag /
+// CHANGELOG (the single source of truth) — bump it only when cutting a release.
+static constexpr const char* SM_FW_VERSION = "1.0.0";
 
 void Input::begin(const GateConfig& /*cfg*/) {
   if (!Serial) Serial.begin(kBaud);
