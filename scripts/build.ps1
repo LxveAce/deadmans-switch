@@ -142,9 +142,25 @@ if ($Variant -eq 'fork' -and [string]::IsNullOrWhiteSpace($Sketch)) {
 $SketchDir = if ([string]::IsNullOrWhiteSpace($Sketch)) { Join-Path $RepoRoot 'firmware\guardian' } else { $Sketch }
 if (-not (Test-Path $SketchDir)) { Die "sketch dir not found: $SketchDir" }
 
+# Register our custom partition table under the name the ESP32 core expects. arduino-esp32 resolves
+# `build.partitions=<name>` to `<core>/tools/partitions/<name>.csv` (there is NO `build.custom_partitions`
+# property), so the CSV must physically exist there as suicide.csv before compiling — otherwise the core's
+# copy-partitions recipe step fails. This mirrors the fix already in scripts/build.sh (the bogus
+# build.custom_partitions property was the Windows build failure).
+$ArduinoData = (arduino-cli config get directories.data 2>$null)
+if ([string]::IsNullOrWhiteSpace($ArduinoData)) { $ArduinoData = Join-Path $env:LOCALAPPDATA 'Arduino15' }
+$registered = $false
+$esp32Core = Join-Path $ArduinoData 'packages\esp32\hardware\esp32'
+if (Test-Path $esp32Core) {
+  Get-ChildItem -Path $esp32Core -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $pdir = Join-Path $_.FullName 'tools\partitions'
+    if (Test-Path $pdir) { Copy-Item $PartCsv (Join-Path $pdir 'suicide.csv') -Force; $registered = $true }
+  }
+}
+if (-not $registered) { Die "could not find an installed esp32 core partitions dir to register $(Split-Path $PartCsv -Leaf) as suicide.csv (is the esp32 core installed?)" }
+
 $BuildProps = @(
   '--build-property', 'build.partitions=suicide',
-  '--build-property', "build.custom_partitions=$PartCsv",
   '--build-property', "compiler.cpp.extra_flags=$DefsStr",
   '--build-property', "compiler.c.extra_flags=$DefsStr"
 )
