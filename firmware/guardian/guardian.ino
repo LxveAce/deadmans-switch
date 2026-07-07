@@ -9,7 +9,7 @@
 // HARDWARE-VALIDATED 2026-06-10 on a blank classic ESP32 (CH340K): built with arduino-cli (esp32 core
 // 2.0.11), live wipe, flashed with a provisioned guardcfg (armed=1, deadman=0, brick=1, max_att=2), and
 // a wrong-password ×2 trigger over serial OBLITERATED the entire flash (esptool read-back: bootloader,
-// partition table, app, guardcfg — all 0xFF). See docs/NIGHT-SESSION-LOG.md.
+// partition table, app, guardcfg — all 0xFF).
 //
 // BUILD (from this folder's staged copy — the bootgate sources are copied in alongside, like the
 // test_harness; see firmware/guardian/README.md):
