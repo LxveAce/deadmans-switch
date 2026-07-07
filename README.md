@@ -10,6 +10,8 @@ Successor to [Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder), th
 
 > ⚠️ **Authorized, lawful use only.** A security-research tool — use it only on systems you own or have explicit permission to test. Provided as-is, no warranty; you assume all risk. See [DISCLAIMER.md](DISCLAIMER.md).
 
+> **⚡ Hardware in the works** — [LxveLabs](https://github.com/LxveAce) is developing a custom security-hardware board **in collaboration with [PCBWay](https://www.pcbway.com)**.
+
 ---
 
 <!-- STATUS-ROADMAP:START -->
