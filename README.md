@@ -17,11 +17,10 @@ Successor to [Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder), th
 <!-- STATUS-ROADMAP:START -->
 ## Status & Roadmap
 
-**Status:** v1.0.0 is shipped with downloadable cross-platform provisioner binaries; the provisioner release pipeline is green. Overall health is steady-but-in-progress — firmware is hardware-validated on classic ESP32 (CYD) only, and the firmware build CI is being brought back online.
+**Status:** v1.0.0 is shipped with downloadable cross-platform provisioner binaries and the provisioner release pipeline is green; the Fork integration tool (`firmware/integration/apply_hook.sh`) is shipped and wired into CI. Overall health is steady-but-in-progress — firmware is hardware-validated on classic ESP32 (CYD) only, and the standalone firmware-build CI leg is a known-WIP best-effort job that currently fails at the link stage (see [`docs/CI-STATUS.md`](docs/CI-STATUS.md)); the boot-gate firmware itself is complete and ships through [Cyber Controller](https://github.com/LxveAce/cyber-controller).
 
 **In progress / known issues:**
-- Firmware build CI is being repaired and re-enabled (it is currently dormant due to a build-config mismatch).
-- The Fork-variant integration tooling (`firmware/integration/apply_hook.sh`) is being authored so the Fork build path is fully reproducible.
+- The standalone firmware-build CI leg is a best-effort/known-WIP job: it reaches the link stage and fails there under arduino-esp32 3.x (an `arduino-cli` link-config issue, not missing code), so it is marked `continue-on-error` and never blocks the repo. Full diagnosis in [`docs/CI-STATUS.md`](docs/CI-STATUS.md).
 - Stage-3 boot-chain handling is validated only on classic ESP32; validation on S2/S3/C3/C6 is pending on sacrificial hardware.
 - Windows installer / distributable for the [Cyber Controller](https://github.com/LxveAce/cyber-controller) flasher front end is in progress (reliability + first-run packaging).
 - Documentation cleanup: a single canonical serial-command contract is being defined in `docs/SPEC.md` so README, CHANGELOG, firmware, and Cyber Controller agree.
@@ -30,7 +29,6 @@ Successor to [Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder), th
 - **Tails OS (amnesiac) flashing** — a host/PC-side imaging flow to write the official Tails image to a removable disk, with mandatory image signature/checksum verification and removable, non-system target confirmation before any write.
 - **"Physical key" access gate** — an access gate protecting host/software use, requiring an admin password and/or a minted USB key present (defaults to fail-closed; AND is the high-assurance default, OR is an explicit convenience option).
 - Define one canonical serial-command contract in `docs/SPEC.md`.
-- Ship `firmware/integration/apply_hook.sh` as a documented Fork integration tool.
 - Reconcile install/run docs across the prebuilt binaries and `host/provision.py` from source.
 - Expand validated board/firmware support beyond classic ESP32.
 <!-- STATUS-ROADMAP:END -->

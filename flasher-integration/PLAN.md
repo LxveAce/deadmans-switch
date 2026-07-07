@@ -1,8 +1,8 @@
-# Flasher integration plan — add the Suicide path (+ tooltips) to `headless-marauder-gui`
+# Flasher integration plan — add the Suicide path (+ tooltips) to `cyber-controller`
 
 > **Scope:** additive only. Plain Marauder stays the core/default behavior. Every change here is
 > behind a checkbox that is **off** by default. This implements SPEC §11 and §12.
-> **Target repo:** `<HOME>\projects\headless-marauder-gui` (`LxveAce/headless-marauder-gui`).
+> **Target repo:** `cyber-controller` (`LxveAce/cyber-controller`).
 > **Owner-only DEFENSIVE tool.** Plaintext passwords are hashed host-side and the buffer is
 > zeroized — never stored, never logged, never passed on a CLI argv.
 

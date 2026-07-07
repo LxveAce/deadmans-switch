@@ -1,4 +1,4 @@
-# CI — build per-board Suicide Marauder bundles.
+# CI — build per-board Dead Man's Switch bundles.
 #
 # Owner-only DEFENSIVE anti-forensic layer. See docs/SPEC.md / docs/SAFETY.md.
 #
@@ -172,7 +172,7 @@ jobs:
         continue-on-error: true  # best-effort: no bundle to upload when the WIP build didn't link
         uses: actions/upload-artifact@v4
         with:
-          name: suicide-${{ matrix.board }}-${{ matrix.variant }}-${{ matrix.tier }}-SAFE
+          name: deadmans-switch-${{ matrix.board }}-${{ matrix.variant }}-${{ matrix.tier }}-SAFE
           path: build/${{ matrix.board }}_${{ matrix.variant }}_${{ matrix.tier }}/
           if-no-files-found: warn
           retention-days: 30

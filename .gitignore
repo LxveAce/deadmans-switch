@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Suicide Marauder — .gitignore
+# Dead Man's Switch — .gitignore
 # Owner-only DEFENSIVE anti-forensic tool. NEVER commit secrets, passwords, or
 # per-device provisioning output (a guardcfg image embeds a board's salted hash).
 # ----------------------------------------------------------------------------
