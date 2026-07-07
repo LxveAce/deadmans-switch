@@ -45,8 +45,7 @@ Coverage is the product of **chip** × **firmware**, and they are independent:
 > Only **classic ESP32** is hardware-validated end-to-end (wipe + brick). On S2/S3/C3/C5/C6 the gate logic,
 > password, dead-man and bulk-erase are expected to work, but the **stage-3 self-brick** falls back to the
 > `esp_flash` path (which needs `CONFIG_SPI_FLASH_DANGEROUS_WRITE_ALLOWED`) rather than the validated
-> ESP32-only ROM-SPI bypass. Treat non-classic chips as **unverified** until tested on real hardware
-> (`FORWARD-PLAN.md` "Dig deeper"; `NIGHT-SESSION-LOG.md`).
+> ESP32-only ROM-SPI bypass. Treat non-classic chips as **unverified** until tested on real hardware.
 
 **Firmware** (which app the gate attaches to) — covered by the matrix in §2.
 
@@ -115,8 +114,8 @@ code is reusable there:
 - **Flipper Zero (STM32WB55):** STM32 RDP (readout protection) + a FAP/firmware-side PIN gate; the Flipper
   already has its own pin lock. Out of scope.
 - **Raspberry Pi SD images:** this is a full-disk-encryption problem (LUKS + a dead-man unlock), handled at
-  the Linux layer, not a boot-gate. The repo's roadmap notes a **host-side** "amnesiac Tails" direction
-  (`FORWARD-PLAN.md` Directive 1) which is the right home for SBC/PC anti-forensics.
+  the Linux layer, not a boot-gate. The repo's roadmap notes a **host-side** "amnesiac Tails" direction,
+  which is the right home for SBC/PC anti-forensics.
 - **Orbic / Android (ADB):** Android FDE/FBE + a wipe trigger; again a platform-native problem.
 
 The honest answer for these eight: **not supported, and not a "port" — they need their own mechanisms.**

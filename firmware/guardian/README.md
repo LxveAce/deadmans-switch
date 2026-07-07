@@ -11,7 +11,7 @@ in `factory` with *any* firmware in `ota_0` (Marauder, Bruce, GhostESP, ESP32-DI
 **Hardware-validated 2026-06-10** on a blank classic ESP32 (CH340K): a live build + provisioned
 `guardcfg` (armed=1, deadman=0, brick=1, max_att=2) + a **wrong-password ×2 trigger over serial**
 **obliterated the entire flash** — esptool read-back showed bootloader, partition table, app, and
-guardcfg all `0xFF`. Full account in [`docs/NIGHT-SESSION-LOG.md`](../../docs/NIGHT-SESSION-LOG.md).
+guardcfg all `0xFF`.
 
 ## Build
 The bootgate sources are not duplicated here — stage them next to the sketch (same pattern as
