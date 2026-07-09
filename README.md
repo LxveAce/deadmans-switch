@@ -15,22 +15,20 @@ Successor to [Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder), th
 ---
 
 <!-- STATUS-ROADMAP:START -->
-## Status & Roadmap
+## Status
 
-**Status:** v1.0.0 is shipped with downloadable cross-platform provisioner binaries and the provisioner release pipeline is green; the Fork integration tool (`firmware/integration/apply_hook.sh`) is shipped and wired into CI. Overall health is steady-but-in-progress — firmware is hardware-validated on classic ESP32 (CYD) only, and the standalone firmware-build CI leg is a known-WIP best-effort job that currently fails at the link stage (see [`docs/CI-STATUS.md`](docs/CI-STATUS.md)); the boot-gate firmware itself is complete and ships through [Cyber Controller](https://github.com/LxveAce/cyber-controller).
+**Latest release: [v1.0.0](https://github.com/LxveAce/deadmans-switch/releases)** — cross-platform provisioner binaries
++ a green release pipeline; the boot-gate firmware is complete and ships through
+[Cyber Controller](https://github.com/LxveAce/cyber-controller).
 
-**In progress / known issues:**
-- The standalone firmware-build CI leg is a best-effort/known-WIP job: it reaches the link stage and fails there under arduino-esp32 3.x (an `arduino-cli` link-config issue, not missing code), so it is marked `continue-on-error` and never blocks the repo. Full diagnosis in [`docs/CI-STATUS.md`](docs/CI-STATUS.md).
-- Stage-3 boot-chain handling is validated only on classic ESP32; validation on S2/S3/C3/C6 is pending on sacrificial hardware.
-- Windows installer / distributable for the [Cyber Controller](https://github.com/LxveAce/cyber-controller) flasher front end is in progress (reliability + first-run packaging).
-- Documentation cleanup: a single canonical serial-command contract is being defined in `docs/SPEC.md` so README, CHANGELOG, firmware, and Cyber Controller agree.
+**Honest scope:** firmware is hardware-validated on **classic ESP32 (CYD) only** — S2/S3/C3/C6 validation is pending on
+sacrificial hardware. The standalone firmware-build CI leg is a known-WIP best-effort job (fails at the link stage under
+arduino-esp32 3.x, so it's `continue-on-error` and never blocks the repo — full diagnosis in
+[`docs/CI-STATUS.md`](docs/CI-STATUS.md)). It does what's documented; where it's unproven, it says so — not "stable/finished".
 
-**Roadmap:**
-- **Tails OS (amnesiac) flashing** — a host/PC-side imaging flow to write the official Tails image to a removable disk, with mandatory image signature/checksum verification and removable, non-system target confirmation before any write.
-- **"Physical key" access gate** — an access gate protecting host/software use, requiring an admin password and/or a minted USB key present (defaults to fail-closed; AND is the high-assurance default, OR is an explicit convenience option).
-- Define one canonical serial-command contract in `docs/SPEC.md`.
-- Reconcile install/run docs across the prebuilt binaries and `host/provision.py` from source.
-- Expand validated board/firmware support beyond classic ESP32.
+**What's next:** Tails-image host flashing (signature/checksum-verified, removable-target-only) · a fail-closed
+"physical key" access gate · one canonical serial-command contract ([`docs/SPEC.md`](docs/SPEC.md)) · broader
+board/firmware validation. Full version history → [CHANGELOG.md](CHANGELOG.md).
 <!-- STATUS-ROADMAP:END -->
 
 ---
