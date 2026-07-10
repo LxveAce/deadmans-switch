@@ -38,11 +38,26 @@ void setup() {
     esp_restart();  // anything but PASS re-enters setup() and re-evaluates from a clean state
   }
 
-  // GATE_PASS. In a real GUARDIAN deployment, hand off to the protected firmware in ota_0:
+  // GATE_PASS. In a real GUARDIAN deployment, hand off to the protected firmware in ota_0.
+  //
+  // WARNING - PER-BOOT GATING LIMITATION (SPEC §6 / firmware/guardian/README.md "Per-boot gating"):
+  // esp_ota_set_boot_partition() PERSISTS the selection into `otadata`. After this hand-off the ROM
+  // 2nd-stage bootloader boots ota_0 DIRECTLY on every subsequent cold boot, so THIS gate never runs
+  // again — the dead-man / wrong-password / host-wipe triggers protect only the FIRST boot after
+  // provisioning. This self-defeat happens on the NORMAL pass path (no attacker needed); it is worse
+  // than the otadata-rewrite attack the top-of-file note describes. A correct per-boot GUARDIAN needs
+  // either Secure Boot v2 + CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE (ota_0 boots PENDING_VERIFY and
+  // rolls back to the factory gate each cold boot) or a one-shot chain-load that never rewrites
+  // otadata — BOTH require hardware validation and are NOT yet implemented here. Until then, for a
+  // real deployment PREFER THE FORK MODEL (the gate is compiled INTO the target firmware, so it runs
+  // at every boot with no otadata hand-off and no skip window). This standalone GUARDIAN sketch is a
+  // firmware-agnostic proof-of-concept of the hand-off, not a per-boot-hardened deployment.
   const esp_partition_t* ota0 =
       esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, nullptr);
   if (ota0) {
-    Serial.println(F("GATE_PASS -> handing off to the protected firmware in ota_0."));
+    Serial.println(F("GATE_PASS -> handing off to ota_0."));
+    Serial.println(F("[WARN] GUARDIAN per-boot limitation: this persists otadata, so this gate is"));
+    Serial.println(F("       SKIPPED on later cold boots. Use the FORK model for per-boot gating."));
     esp_ota_set_boot_partition(ota0);
     esp_restart();
   }

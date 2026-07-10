@@ -13,6 +13,31 @@ in `factory` with *any* firmware in `ota_0` (Marauder, Bruce, GhostESP, ESP32-DI
 **obliterated the entire flash** — esptool read-back showed bootloader, partition table, app, and
 guardcfg all `0xFF`.
 
+> Scope of that validation: it exercised the **wipe/brick path** and the no-`ota_0` simulate branch. It
+> did **not** exercise the `ota_0` hand-off-then-reboot path, which has the per-boot limitation below.
+
+## Per-boot gating (IMPORTANT — read before a GUARDIAN deployment)
+On `GATE_PASS` with an `ota_0` present, `guardian.ino` calls `esp_ota_set_boot_partition(ota_0)`, which
+**persists** the selection into `otadata`. The ROM 2nd-stage bootloader then boots `ota_0` **directly on
+every subsequent cold boot**, so the Guardian gate **never runs again** — the dead-man / wrong-password /
+host-wipe triggers protect only the **first** boot after provisioning. This is not the attacker scenario
+in *Anti-skip* below: it happens on the **normal pass path, with no attacker**, because the hand-off
+itself rewrites `otadata`.
+
+A correct per-boot GUARDIAN needs one of:
+- **Secure Boot v2 + `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`** — `ota_0` boots `PENDING_VERIFY`; because
+  a firmware-agnostic payload never calls `esp_ota_mark_app_valid_cancel_rollback()`, the next cold boot
+  **rolls back to the factory gate**, so the gate fires every boot. (T2 / eFuse — IRREVERSIBLE, owner-
+  choice C2.)
+- **A one-shot chain-load** from the gate that jumps into the `ota_0` image **without** rewriting
+  `otadata` (so `otadata` keeps pointing at `factory`). Needs a custom loader; not yet implemented.
+
+Both require **hardware validation** and are **not implemented here yet**. Until then, for a real
+deployment **prefer the FORK model** (the gate is compiled *into* the target firmware, so it runs at
+every boot with no `otadata` hand-off and no skip window). The standalone GUARDIAN sketch is a
+firmware-agnostic **proof-of-concept of the hand-off**, not a per-boot-hardened deployment.
+*(Red-team loop-2 finding, 2026-07-09 — tracked for a hardware-validated fix.)*
+
 ## Build
 The bootgate sources are not duplicated here — stage them next to the sketch (same pattern as
 `firmware/test_harness`), then build with arduino-cli (esp32 core 2.0.11):

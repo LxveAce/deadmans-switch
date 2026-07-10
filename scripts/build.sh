@@ -237,6 +237,11 @@ else
   echo "[warn] boot_app0.bin not found in the installed core; the flasher will fetch it from FlashFiles/."
 fi
 
+# SAFE_MODE provenance marker: record the ACTUAL compiled destruct mode, keyed to the same $SAFE_MODE
+# that gates -DSUICIDE_SAFE_MODE above. CI's "Enforce SAFE_MODE" step (and anyone auditing a bundle)
+# reads this to verify the artifact was built SAFE and refuse to ship a live-brick build.
+printf 'SAFE_MODE=%s\n' "$SAFE_MODE" > "$OUT/BUILD-FLAGS.txt"
+
 echo "=============================================================="
 echo " bundle ready: $OUT"
 ls -1 "$OUT"/app.bin "$OUT"/partitions.bin "$OUT"/bootloader.bin "$OUT"/boot_app0.bin 2>/dev/null || true

@@ -144,9 +144,30 @@ jobs:
           for f in app.bin partitions.bin bootloader.bin boot_app0.bin; do
             if [ ! -s "$dir/$f" ]; then echo "::error::missing or empty bundle file: $dir/$f"; missing=1; fi
           done
-          # Sanity: refuse to ship anything that wasn't built in SAFE_MODE. The build script writes
-          # a marker we can check; if a future change drops SAFE_MODE, fail the job.
+          # File-presence only (best-effort; the WIP link stage produces no bins in CI today). The
+          # "never ship a non-SAFE_MODE artifact" invariant is enforced separately and BLOCKING in the
+          # next step, from the BUILD-FLAGS.txt marker build.sh writes — not here.
           test "$missing" -eq 0
+
+      - name: Enforce SAFE_MODE (blocking)
+        # Real implementation of the "never ship a non-SAFE_MODE artifact" invariant. build.sh writes
+        # BUILD-FLAGS.txt with the ACTUAL compiled mode. This step is deliberately NOT continue-on-error,
+        # but it can only FAIL when a bundle was actually produced AND is not SAFE — so it stays green in
+        # the WIP no-bundle state while hard-blocking a live-brick artifact the moment one is emitted.
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="build/${{ matrix.board }}_${{ matrix.variant }}_${{ matrix.tier }}"
+          flags="$dir/BUILD-FLAGS.txt"
+          if [ -f "$flags" ]; then
+            if ! grep -qx 'SAFE_MODE=1' "$flags"; then
+              echo "::error::bundle at $dir was NOT built in SAFE_MODE ($(cat "$flags")) — refusing to ship"
+              exit 1
+            fi
+            echo "SAFE_MODE verified for $dir"
+          else
+            echo "no bundle produced (WIP build); nothing to enforce"
+          fi
 
       - name: Write bundle metadata
         continue-on-error: true  # best-effort: the build dir may not exist when the WIP build produced no bins
