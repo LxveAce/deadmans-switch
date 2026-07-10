@@ -390,6 +390,12 @@ Never log the password or hash. Zeroize the password bytearray after use.
 
 ## 11. Flasher integration — `headless-marauder-gui`
 
+> **Correction (shipped):** integration shipped in **Cyber Controller** (`LxveAce/cyber-controller`), not
+> `headless-marauder-gui`. Real symbols: `src/core/suicide_setup.build` → `provision.build_bundle(args,
+> pw_buf)`; `src/core/flash_core.{read_bundle_manifest,flash_suicide}`; GUI `src/ui/qt/suicide_dialog.py`;
+> CLI `--deadman-setup`. Source of truth: [`flasher-integration/PLAN.md`](../flasher-integration/PLAN.md).
+> The `marauder_core/flasher.py` / `gui_qt/app.py` references below are the abandoned target.
+
 Additive only; plain Marauder stays the core/default.
 
 - `marauder_core/flasher.py`: add `suicide_bundle_files(chip, bundle_dir)` and

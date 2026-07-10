@@ -147,6 +147,13 @@ otadata_blank.bin    @ <otadata offset from CSV>        # 0xe000 on the 4 MB lay
 
 Two ways to run it:
 
+> **Correction (shipped):** the flasher that carries this is **Cyber Controller**, not
+> `headless-marauder-gui`. In CC the GUI is `src/ui/qt/suicide_dialog.py::SuicideSetupDialog`, the CLI is
+> `cyber-controller --deadman-setup`, and the flash call is
+> `src/core/flash_core.flash_suicide(port, chip, bundle_dir, on_line, baud=921600)`. See
+> [`flasher-integration/PLAN.md`](../flasher-integration/PLAN.md). The `marauder_core/flasher.py` /
+> `FlasherDialog` names below are the abandoned target, kept for context.
+
 - **GUI** (`headless-marauder-gui` → `FlasherDialog`): tick the single **"Suicide"** checkbox, fill
   the sub-panel (password, arm pin/level, dead-man toggle), pick the suicide build for the detected
   chip, flash. Hashing happens host-side in the GUI process (it reuses `provision.py`). The flash

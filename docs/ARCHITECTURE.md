@@ -389,6 +389,15 @@ zeroize the password buffer immediately after hashing (`SPEC.md` §4, §9, §10)
 
 ## 9. How it plugs into the headless flasher — `headless-marauder-gui`
 
+> **Correction (shipped):** the integration did **not** land in `headless-marauder-gui` — that stays a
+> standalone flasher with no dead-man coupling. It shipped in **Cyber Controller** (`LxveAce/cyber-controller`),
+> which vendors this repo as a submodule and imports `host/provision.py`. The real symbols are
+> `src/core/suicide_setup.build` → `provision.build_bundle(args, pw_buf)` and
+> `src/core/flash_core.{read_bundle_manifest,flash_suicide}`, with the GUI at
+> `src/ui/qt/suicide_dialog.py`. See [`flasher-integration/PLAN.md`](../flasher-integration/PLAN.md) for
+> the source-of-truth reference. The `marauder_core/flasher.py` / `gui_qt/app.py` names below describe the
+> abandoned target and are kept only for historical context.
+
 Integration is **additive only**; plain Marauder stays the core default (`SPEC.md` §11).
 
 - **`marauder_core/flasher.py`** gains `suicide_bundle_files(chip, bundle_dir)` and
