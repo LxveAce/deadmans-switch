@@ -1,16 +1,19 @@
 # Dead Man's Switch
 
 > **Universal anti-forensic dead-man gate for ESP32 security firmware**
+> Gate the boot · wipe on failure · fail safe by default.
 
 [![Release](https://img.shields.io/github/v/release/LxveAce/deadmans-switch?sort=semver)](https://github.com/LxveAce/deadmans-switch/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Gate: firmware-agnostic](https://img.shields.io/badge/gate-firmware--agnostic-blue)](docs/FIRMWARE-SUPPORT.md)
 ![Platform: ESP32](https://img.shields.io/badge/platform-ESP32-blue)
+[![License](https://img.shields.io/github/license/LxveAce/deadmans-switch)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/LxveAce/deadmans-switch?style=social)](https://github.com/LxveAce/deadmans-switch/stargazers)
+
+**[Releases](https://github.com/LxveAce/deadmans-switch/releases)** · **[Docs](docs/SPEC.md)** · **[Changelog](CHANGELOG.md)** · **[Cyber Controller](https://cybercontroller.org)** · **[Discord](https://discord.gg/lxvelabs)**
 
 Successor to [Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder), the original ESP32 anti-forensic wipe system.
 
-> ⚠️ **Authorized, lawful use only.** A security-research tool — use it only on systems you own or have explicit permission to test. Provided as-is, no warranty; you assume all risk. See [DISCLAIMER.md](DISCLAIMER.md).
-
-> **⚡ Hardware in the works** — [LxveLabs](https://github.com/LxveAce) is developing a custom security-hardware board **in collaboration with [PCBWay](https://www.pcbway.com)**.
+> ⚠️ **Authorized, lawful use only.** A security-research tool — use it only on devices you own or have explicit permission to test. It permanently destroys data by design. Provided as-is, no warranty; you assume all risk. See [DISCLAIMER.md](DISCLAIMER.md).
 
 ---
 
@@ -57,7 +60,7 @@ The full state machine, NVS schema, and invariants are defined in [`docs/SPEC.md
 
 ---
 
-## Features
+## ✨ Features
 
 - **ROM SPI bypass brick** — bypasses the IDF flash protection layer via the ESP32's ROM SPI driver to erase the running application from within itself. Hardware-validated on classic ESP32 (CYD 2432S028).
 - **Overwrite-then-erase + verify** — forensic-grade wipe of internal partitions: random overwrite, then erase, then **raw-read** verification (`esp_flash_read`) that every byte is `0xFF` — so an erased sector verifies correctly even under Flash Encryption (T2).
@@ -73,7 +76,7 @@ The full state machine, NVS schema, and invariants are defined in [`docs/SPEC.md
 
 ---
 
-## Supported Boards
+## Supported boards
 
 | Board | Status | Notes |
 |-------|--------|-------|
@@ -83,7 +86,7 @@ The Guardian standalone gate was hardware-validated on a blank classic ESP32 —
 
 ---
 
-## Board & Firmware Support
+## Board & firmware support
 
 **Full matrix → [`docs/FIRMWARE-SUPPORT.md`](docs/FIRMWARE-SUPPORT.md)** (every Cyber Controller firmware
 profile mapped to its gate-support status, honest about shipped vs. unvalidated vs. out-of-scope).
@@ -93,7 +96,7 @@ Quick version:
 | | Status |
 |---|---|
 | **Shipped + hardware-validated** | Marauder **FORK** on **classic ESP32** (CYD 2432S028 + blank dev board: wrong-password ×2 wiped flash to `0xFF`). |
-| **Provisionable, not yet HW-validated** | ESP32-S2 / S3 / C3 / C5 / C6 (the stage-3 self-brick falls back to `esp_flash` off classic ESP32). C5 is now provisionable (0x2000 bootloader). |
+| **Provisionable, not yet HW-validated** | ESP32-S2 / S3 / C3 / C5 / C6 (the stage-3 self-brick falls back to `esp_flash` off classic ESP32). C5 is host-provisionable now (0x2000 bootloader); its firmware build waits on the upstream Marauder C5 port. |
 | **Architecturally supported (GUARDIAN), not yet wired** | *Any* ESP32 firmware in `ota_0` — GhostESP, Bruce, HaleHound, Meshtastic, ESP32-DIV, … (needs 8 MB+). |
 | **Out of scope (not an ESP32 boot-gate problem)** | Non-ESP32 targets: RTL8720/BW16 (Realtek AmebaD), Flipper Zero (STM32), Raspberry Pi SD images, Orbic/ADB. |
 
@@ -133,18 +136,7 @@ A real destruct chain requires explicitly passing `--no-safe-mode`, and a live-b
 
 ---
 
-## Cyber Controller Integration
-
-Dead Man's Switch is designed to be integrated into [Cyber Controller](https://github.com/LxveAce/cyber-controller) as a **git submodule**. Cyber Controller provides:
-
-- Remote status monitoring via the serial dashboard (arm/disarm is applied by re-provisioning, not a runtime toggle)
-- Host-side password provisioning (plaintext never touches the device)
-- One-click flash of Dead Man's Switch builds to connected boards
-- Cross-device coordination — wipe triggers can cascade across multiple devices
-
----
-
-## Quickstart
+## 🚀 Quickstart
 
 1. **Read the safety docs first** — [`docs/SAFETY.md`](docs/SAFETY.md), [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
 2. **Understand the contract** — [`docs/SPEC.md`](docs/SPEC.md) is the single source of truth for names, NVS keys, offsets, build flags, and the state machine.
@@ -154,9 +146,53 @@ Dead Man's Switch is designed to be integrated into [Cyber Controller](https://g
    ```
    Options: `--board {esp32|esp32s2|esp32s3|esp32c3|esp32c6}`, `--variant {fork|guardian}`, `--tier {T1|T2}`, `--input {serial|touch|mini_kb|cardputer|buttons}`, `--backend {arduino-cli|pio}`.
 4. **Provision a device** — `host/provision.py` (password via stdin/getpass, **never argv**) produces a `guardcfg.bin` NVS image, a `bundle.json` flash manifest, and (Guardian only) a blank `otadata.bin`.
-5. **Flash** — either via CI bundle artifacts, or through [Cyber Controller](https://github.com/LxveAce/cyber-controller) / [Headless Marauder GUI](https://github.com/LxveAce/headless-marauder-gui).
+5. **Flash** — either via CI bundle artifacts, or through [Cyber Controller](https://github.com/LxveAce/cyber-controller), the host that carries the provisioned bundle to the board.
 
 The host provisioner needs only the Python 3.9+ standard library for everything security-relevant; its one external dependency is the NVS partition image generator (`esp-idf-nvs-partition-gen`, pinned in [`host/requirements.txt`](host/requirements.txt)).
+
+---
+
+## Cyber Controller integration
+
+Dead Man's Switch is built to be vendored into [Cyber Controller](https://github.com/LxveAce/cyber-controller) as a **git submodule** — Cyber Controller imports `host/provision.py` directly. Through it you get:
+
+- Remote status monitoring via the serial dashboard (arm/disarm is applied by re-provisioning, not a runtime toggle).
+- Host-side password provisioning (plaintext never touches the device).
+- One-click flash of Dead Man's Switch builds to connected boards.
+
+The plain-Marauder flash path stays unchanged, and every duress control is behind an opt-in that is **off** by default. See [`flasher-integration/PLAN.md`](flasher-integration/PLAN.md) for the shipped integration contract.
+
+---
+
+## 🌐 Ecosystem
+
+| Project | What it is |
+|---|---|
+| **[Cyber Controller](https://github.com/LxveAce/cyber-controller)** | The flagship flash-and-control app. Vendors this repo as a submodule and does the host-side provisioning + one-click flash. Site: [cybercontroller.org](https://cybercontroller.org). |
+| **[Headless Marauder GUI](https://github.com/LxveAce/headless-marauder-gui)** | Standalone Marauder controller + multi-firmware flasher. A sibling project — it stays standalone, with no dead-man coupling. |
+| **[Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder)** | The predecessor this project grew out of. Superseded here; kept for lineage. |
+
+---
+
+## 🔒 Security
+
+Found a way past the gate, or a way to pull the password? Email **lxveace@proton.me** — please don't open a public issue for anything security-sensitive. The reporting process, scope (gate bypass, password extraction, incomplete wipe), and what's explicitly out of scope are in [`SECURITY.md`](SECURITY.md).
+
+Design posture in one line: unprovisioned or disarmed boards can never wipe, plaintext passwords are hashed host-side and never stored or transmitted, and the attempt counter fails closed. The threat model is spelled out in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
+
+---
+
+## 🤝 Contributing
+
+Host-side tests are plain `pytest`:
+
+```sh
+cd host
+pip install -r requirements.txt
+pytest
+```
+
+They cover the provisioner — argv-safety (passwords never on a command line), fail-closed provisioning, and per-chip bootloader-offset resolution. Firmware changes have to keep the [`docs/SPEC.md`](docs/SPEC.md) contract intact; it's the source of truth every layer conforms to. Details in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 
@@ -165,18 +201,20 @@ The host provisioner needs only the Python 3.9+ standard library for everything 
 ```
 deadmans-switch/
 ├── README.md                      <- you are here
-├── CHANGELOG.md / SECURITY.md / CONTRIBUTING.md / LICENSE
+├── CHANGELOG.md / SECURITY.md / CONTRIBUTING.md / DISCLAIMER.md / LICENSE
 ├── .github/workflows/             <- CI matrix -> per-board SAFE_MODE bundles
 ├── docs/
 │   ├── SPEC.md                    <- canonical interface contract (source of truth)
 │   ├── SAFETY.md                  <- read before flashing / arming / testing
 │   ├── THREAT-MODEL.md
+│   ├── FIRMWARE-SUPPORT.md        <- gate-support matrix (per firmware/chip)
 │   ├── ARCHITECTURE.md
 │   ├── HARDWARE.md                <- wiring guides
 │   ├── PROVISIONING.md
 │   ├── RESEARCH-DIGEST.md
 │   ├── SPIKE-PLAN.md              <- sacrificial-board plan for the UNVERIFIED brick
 │   ├── HARDWARE-TEST.md           <- validation log (classic ESP32)
+│   ├── CI-STATUS.md               <- firmware-build CI diagnosis
 │   └── LICENSING.md               <- GPL/LGPL distribution notes
 ├── firmware/
 │   ├── bootgate/                  <- gate headers + impl + input drivers
@@ -185,36 +223,33 @@ deadmans-switch/
 │   ├── partitions/                <- 4 MB / 8 MB / 16 MB / Guardian partition CSVs
 │   └── test_harness/              <- SAFE_MODE bench
 ├── host/
-│   └── provision.py               <- builds guardcfg.bin + bundle.json
+│   ├── provision.py               <- builds guardcfg.bin + bundle.json
+│   └── tests/                     <- pytest suite for the provisioner
 ├── scripts/
 │   ├── build.ps1 / build.sh       <- parameterized build (board/variant/tier/input)
 │   └── build_test_harness.{ps1,sh}
 └── flasher-integration/
-    └── PLAN.md
+    └── PLAN.md                    <- shipped Cyber Controller integration contract
 ```
 
 ---
 
-## Credits & License
+## 🙏 Credits & license
 
-Built on **[ESP32Marauder](https://github.com/justcallmekoko/ESP32Marauder)** by **justcallmekoko** — the display/keyboard/SD drivers and the entire base firmware are theirs. This project is an additive, owner-only defensive layer on top of that work.
+Built on **[ESP32Marauder](https://github.com/justcallmekoko/ESP32Marauder)** by **justcallmekoko** — the display/keyboard/SD drivers and the entire base firmware are theirs. This project is an additive, owner-only defensive layer on top of that work. Nothing upstream is vendored into this repo; the Fork variant is applied against a pinned ESP32Marauder checkout.
 
 Originally developed as **[Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder)** — the first ESP32 anti-forensic wipe system with boot password gating, automatic wipe on failed attempts, and a hardware dead-man switch. Dead Man's Switch is the universal successor with expanded board and firmware support.
 
-This project is released under the **[MIT License](LICENSE)**. ESP32Marauder is MIT; distribution notes for the LGPL components statically linked in (e.g. ESPAsyncWebServer) are tracked in [`docs/LICENSING.md`](docs/LICENSING.md) — read it before redistributing any binaries.
+Released under the **[MIT License](LICENSE)**. ESP32Marauder is MIT; distribution notes for the LGPL components statically linked in (e.g. ESPAsyncWebServer) are tracked in [`docs/LICENSING.md`](docs/LICENSING.md) — read it before redistributing any binaries.
 
 ---
 
-## Connect
+## 📫 Connect
 
-- **Discord:** [discord.gg/lxvelabs](https://discord.gg/lxvelabs) — questions, help, or to talk through this project
-- **GitHub:** [@LxveAce](https://github.com/LxveAce)
-- **Email:** LxveLabs@proton.me (business) · lxveace@proton.me (direct)
-- **Website:** [lxvelabs.com](https://lxvelabs.com) · personal: [lxveace.com](https://lxveace.com)
-- **Project site:** [cybercontroller.org](https://cybercontroller.org)
+**Discord:** [discord.gg/lxvelabs](https://discord.gg/lxvelabs) · **GitHub:** [@LxveAce](https://github.com/LxveAce) · **Email:** LxveLabs@proton.me (business) · lxveace@proton.me (direct) · **Sites:** [lxvelabs.com](https://lxvelabs.com) · [cybercontroller.org](https://cybercontroller.org)
 
 ---
 
-### Built by LxveLabs
+Built by LxveAce · a LxveLabs project
 
-A **LxveLabs** project by LxveAce — hardware & security tools. LxveLabs is developing custom multi-radio ESP32 hardware in collaboration with [PCBWay](https://www.pcbway.com). More at [github.com/LxveAce](https://github.com/LxveAce).
+Hardware supported by PCBWay — LxveLabs is developing a board in collaboration with [PCBWay](https://www.pcbway.com).
