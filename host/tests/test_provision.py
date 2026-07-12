@@ -403,3 +403,60 @@ def test_manifest_bootloader_offset_by_chip(tmp_path):
     (files, _warn), _off = _manifest_for("suicide_8MB.csv", "fork", "esp32s3", tmp_path)
     by_name = {f["file"]: f for f in files}
     assert by_name["bootloader.bin"]["offset"] == 0x0
+
+
+# --------------------------------------------------------------------------------------------------
+# Password-bytearray zeroization on EVERY build_bundle exit (SPEC §10) + the nvs-gen SystemExit
+# fall-through. (deadmans-switch audit 2026-07-12: host-provision findings.)
+# --------------------------------------------------------------------------------------------------
+
+def test_build_bundle_zeroizes_password_on_error_path(tmp_path):
+    """A raise BEFORE the hashing step (here: a missing partitions CSV) must still scrub the
+    plaintext bytearray. Before the fix the only scrub was inside build_bundle's post-hash block,
+    so any earlier error left the plaintext lingering in the freed bytearray heap allocation."""
+    args = _make_args(partitions=str(tmp_path / "does-not-exist.csv"), out=str(tmp_path / "out"))
+    secret = b"correcthorsebattery"
+    pw = bytearray(secret)
+    with pytest.raises(provision.ProvisionError):
+        provision.build_bundle(args, pw)
+    assert bytes(pw) == b"\x00" * len(secret)   # fully zeroized despite the early raise
+
+
+def test_zeroize_helper_scrubs_and_tolerates_immutable():
+    buf = bytearray(b"secret")
+    provision._zeroize(buf)
+    assert bytes(buf) == b"\x00" * 6
+    provision._zeroize(b"immutable")   # immutable -> no-op, must not raise (TypeError swallowed)
+    provision._zeroize(None)           # None -> no-op
+
+
+def test_generate_nvs_bin_falls_through_on_systemexit(monkeypatch, tmp_path):
+    """The in-process nvs_partition_gen entry can sys.exit() on an internal failure; the documented
+    fallback to the CLI subprocess must still run. Before the fix `except Exception` let SystemExit
+    (a BaseException) escape uncaught, so the resilient fallback never fired."""
+    import types
+
+    fake = types.ModuleType("fake_nvs_gen")
+
+    def _sysexit(ns):
+        raise SystemExit(3)   # some nvs_partition_gen releases sys.exit() inside generate()
+
+    fake.generate = _sysexit
+    monkeypatch.setattr(provision, "_find_nvs_gen", lambda d: ("module", fake))
+
+    calls = {"n": 0}
+
+    class _OK:
+        returncode = 0
+        stdout = b""
+
+    def fake_run(cmd, **k):
+        calls["n"] += 1
+        assert "generate" in cmd            # the CLI subprocess fallback
+        return _OK()
+
+    monkeypatch.setattr(provision.subprocess, "run", fake_run)
+    csv = tmp_path / "nvs.csv"
+    csv.write_text("x", encoding="utf-8")
+    provision.generate_nvs_bin(str(csv), str(tmp_path / "guardcfg.bin"), 0x3000)
+    assert calls["n"] == 1                   # fell through to the subprocess CLI instead of crashing

@@ -210,17 +210,22 @@ def require_partition(parts, name):
 # Password hashing (PBKDF2-HMAC-SHA256, stdlib). Plaintext is zeroized after use.
 # ----------------------------------------------------------------------------------------------
 
+def _zeroize(buf):
+    """Best-effort in-place zeroization of a mutable bytearray (no-op on an immutable / None buf)."""
+    try:
+        for i in range(len(buf)):
+            buf[i] = 0
+    except TypeError:
+        pass
+
+
 @contextmanager
 def _zeroized(buf):
     """Context manager that zeroizes a mutable bytearray on exit (best effort)."""
     try:
         yield buf
     finally:
-        try:
-            for i in range(len(buf)):
-                buf[i] = 0
-        except TypeError:
-            pass
+        _zeroize(buf)
 
 
 def read_password_securely(confirm=True):
@@ -466,11 +471,13 @@ def generate_nvs_bin(csv_path, out_bin, size_bytes, nvs_gen_dir=None):
     try:
         sys.stdout = buf
         gen(ns)
-    except Exception:  # intentional broad fall-through to the stable CLI path (see comment)
+    except (Exception, SystemExit):  # broad fall-through to the stable CLI path (see comment)
         # The in-process entry point varies wildly across nvs_partition_gen releases: signature
         # mismatch (TypeError), missing attributes on the Namespace it expects (AttributeError),
-        # and assorted internal failures (e.g. SystemExit subclasses, argparse quirks, version-
-        # specific exceptions). Any of these is a cue to FALL THROUGH to the well-defined CLI
+        # and assorted internal failures -- notably SystemExit (some releases sys.exit() inside
+        # generate()), which is a BaseException, so it must be named explicitly here or it would
+        # escape uncaught. argparse quirks and version-specific exceptions too. Any of these is a
+        # cue to FALL THROUGH to the well-defined CLI
         # ('-m ... generate') path, which every release supports. The password is never in argv.
         sys.stdout = old
         cmd = [sys.executable, "-m", mod.__name__, "generate", csv_path, out_bin, size_hex]
@@ -806,6 +813,19 @@ def validate_args(args):
 # ----------------------------------------------------------------------------------------------
 
 def build_bundle(args, pw_buf):
+    """Public provisioning entry point. Guarantees the plaintext `pw_buf` is zeroized on EVERY exit
+    path -- including an early raise from validate/parse/makedirs BEFORE the hashing step (SPEC §10
+    'zeroize the password bytearray after use'). All callers (main() via getpass, and GUI/programmatic
+    callers such as cyber-controller's Suicide setup) rely on this contract. Delegates to
+    _build_bundle_impl (which additionally scrubs eagerly right after hashing to minimise the window)
+    and returns (out_dir, manifest, file_warnings)."""
+    try:
+        return _build_bundle_impl(args, pw_buf)
+    finally:
+        _zeroize(pw_buf)
+
+
+def _build_bundle_impl(args, pw_buf):
     """Provisioning CORE (reusable entry point). Hashes `pw_buf` (a bytearray of the plaintext
     password, which is CONSUMED + ZEROIZED here), bakes guardcfg.bin + (guardian) otadata_blank.bin +
     bundle.json into args.out, and returns (out_dir, manifest, file_warnings).
