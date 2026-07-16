@@ -218,6 +218,12 @@ def test_validate_password_ok():
     # "unlock" is only reserved as a leading keyword; embedded/other use is fine.
     assert provision.validate_password(b"myunlockpass") is None
     assert provision.validate_password(b"unlocked") is None  # no space after "unlock"
+    # `wipe`/`sm_` are reserved only as bare serial commands: a non-delimiter 5th byte (wiped/wipeout)
+    # or a near-miss prefix (smart/sms_) is a real password the serial adapter hashes normally.
+    assert provision.validate_password(b"wiped") is None
+    assert provision.validate_password(b"wipeout") is None
+    assert provision.validate_password(b"smart") is None
+    assert provision.validate_password(b"sms_backup") is None
 
 
 @pytest.mark.parametrize("pw", [
@@ -230,6 +236,12 @@ def test_validate_password_ok():
     b"unlock secret",                          # reserved serial keyword prefix
     b"UNLOCK secret",                          # case-insensitive keyword
     b"unlock\tsecret",                         # keyword + tab
+    b"wipe",                                    # bare host-wipe keyword -> serial self-wipe on unlock
+    b"WIPE",                                    # case-insensitive
+    b"wipe now",                               # `wipe `-prefixed -> intercepted as the wipe command
+    b"wipe\tsecret",                           # `wipe\t`-prefixed
+    b"sm_status",                              # reserved SM_ command prefix -> serial lockout
+    b"SM_wipe",                                # case-insensitive sm_ prefix (sm_wipe -> the wipe path)
 ])
 def test_validate_password_rejects(pw):
     with pytest.raises(provision.ProvisionError):

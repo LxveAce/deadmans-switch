@@ -302,6 +302,26 @@ def validate_password(pw_bytes):
             "password begins with the reserved serial keyword `unlock ` (the serial adapter strips "
             "this prefix before hashing). Choose a password that does not start with `unlock `."
         )
+    # The serial adapter intercepts two more bare-line command classes BEFORE it treats a line as a
+    # password (GateInput_serial.cpp): a `wipe` / `wipe `/`wipe\t` line routes into the authenticated
+    # host-wipe confirmation, and any `sm_`-prefixed line goes to the SM_ command classifier. A password
+    # equal to one of these is accepted here but can never be typed as a BARE unlock over serial: a
+    # `wipe` password would route the owner's own correct password into the wipe prompt (a self-wipe on
+    # the first unlock of an ARMED board), and an `sm_`-prefixed one is swallowed as a command (a serial
+    # lockout) — or, for `sm_wipe`, the wipe path. Reject both at provisioning time, beside the
+    # `unlock ` guard, so every GATE_INPUT_* method can actually hash the chosen password.
+    if bytes(pw_bytes[:4]).lower() == b"wipe" and (n == 4 or pw_bytes[4] in (0x20, 0x09)):
+        raise ProvisionError(
+            "password is (or begins with) the reserved serial keyword `wipe`; typed bare over serial "
+            "the adapter routes it into the host-wipe confirmation instead of unlocking, so on an ARMED "
+            "board the correct password would trigger the wipe. Choose a password that is not `wipe`."
+        )
+    if bytes(pw_bytes[:3]).lower() == b"sm_":
+        raise ProvisionError(
+            "password begins with the reserved serial command prefix `sm_`; the serial adapter routes "
+            "`sm_*` lines to the command classifier instead of hashing them, so the password would not "
+            "validate on-device over serial. Choose a password that does not start with `sm_`."
+        )
 
 
 # ----------------------------------------------------------------------------------------------
