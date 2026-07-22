@@ -1,0 +1,26 @@
+name: host-tests
+
+# Gate the pure-Python host provisioner tests on every push / PR so a provision.py regression can't
+# merge silently. The suite is stdlib-only and stubs the NVS generator (see host/tests/conftest.py),
+# so it needs no board, no esp-idf, and no network — just pytest. The firmware build is separate
+# (build.yml); this guards the host side, which had no automated gate before.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+      - name: Run host provisioner tests
+        run: python -m pytest host/tests -q

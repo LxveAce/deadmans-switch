@@ -498,3 +498,21 @@ def test_generate_nvs_bin_falls_through_on_systemexit(monkeypatch, tmp_path):
     csv.write_text("x", encoding="utf-8")
     provision.generate_nvs_bin(str(csv), str(tmp_path / "guardcfg.bin"), 0x3000)
     assert calls["n"] == 1                   # fell through to the subprocess CLI instead of crashing
+
+
+def test_generate_nvs_bin_rejects_below_minimum_guardcfg(monkeypatch, tmp_path):
+    """0x2000 is a valid 4096-multiple but below the 0x3000 read/write NVS minimum. It must be
+    rejected BEFORE generation — a smaller guardcfg yields a READ-ONLY NVS image and the on-device
+    read/write gate never activates (SPEC §5). _find_nvs_gen is stubbed so the size guard is what's
+    under test, not whether a generator is installed."""
+    monkeypatch.setattr(provision, "_find_nvs_gen", lambda d: ("module", object()))
+    with pytest.raises(provision.ProvisionError, match="0x3000"):
+        provision.generate_nvs_bin(str(tmp_path / "nvs.csv"), str(tmp_path / "guardcfg.bin"), 0x2000)
+
+
+def test_generate_nvs_bin_rejects_non_4096_multiple_guardcfg(monkeypatch, tmp_path):
+    """A guardcfg size that isn't a 4096-byte multiple can't be a valid NVS partition, so it's
+    rejected before generation (here 0x3001 is above the minimum but not 4096-aligned)."""
+    monkeypatch.setattr(provision, "_find_nvs_gen", lambda d: ("module", object()))
+    with pytest.raises(provision.ProvisionError, match="multiple of 0x1000"):
+        provision.generate_nvs_bin(str(tmp_path / "nvs.csv"), str(tmp_path / "guardcfg.bin"), 0x3001)
