@@ -1,4 +1,4 @@
-# CI status — standalone firmware build (best-effort / known-WIP)
+# CI status: standalone firmware build (best-effort / known-WIP)
 
 _Last updated: 2026-06-27._
 
@@ -6,8 +6,8 @@ _Last updated: 2026-06-27._
 
 The standalone `arduino-cli` firmware build (`.github/workflows/build.yml` → `scripts/build.sh`) is
 **best-effort** and currently does not produce binaries in CI. It is marked `continue-on-error: true`
-so it does not block the repo, and shows as a yellow warning. **The firmware sources are complete** —
-this is an `arduino-esp32` 3.x / `arduino-cli` link-configuration issue, not missing/incomplete code.
+so it does not block the repo, and shows as a yellow warning. **The firmware sources are complete.**
+This is an `arduino-esp32` 3.x / `arduino-cli` link-configuration issue, not missing or incomplete code.
 
 The boot-gate firmware is delivered + exercised through **cyber-controller** (which bundles this repo as
 a submodule), so end users are unaffected by the standalone-build status.
@@ -32,7 +32,7 @@ the build to the next stage:
 
 After the above, the build reaches the **link** stage and fails because the esp32 **core + IDF
 libraries are not in the final link**: undefined references to `delay`, `Print::println`,
-`esp_restart`, `esp_partition_find_first`, `esp_ota_set_boot_partition`, `nvs_*`, `mbedtls_*` — for
+`esp_restart`, `esp_partition_find_first`, `esp_ota_set_boot_partition`, `nvs_*`, `mbedtls_*`, for
 **both** the in-repo GUARDIAN sketch and the upstream FORK. Because core symbols like `delay`/`Print`
 are unresolved, this is not about the bootgate sources (which are complete and compile); the link is
 simply not pulling in `libcore.a` + the precompiled IDF archives.

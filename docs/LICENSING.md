@@ -1,4 +1,4 @@
-# LICENSING — posture for the Suicide Marauder fork
+# LICENSING: posture for the Suicide Marauder fork
 
 > **Not legal advice.** This is an engineering summary of the license obligations the project inherits,
 > so the operator can make an informed decision before distributing any binary. Confirm the actual
@@ -29,7 +29,7 @@ table below is the load-bearing summary; the sections expand each row.
 The Suicide build is a fork of ESP32Marauder with the boot-gate (`BootGate::run()`) hooked into
 `setup()` and the gate modules compiled in (SPEC §1, FORK variant). That is, by definition, a
 modified/derivative work of the upstream firmware: **the binary inherits the upstream components'
-license terms.** You cannot escape an upstream library's license by forking around it — whatever the
+license terms.** You cannot escape an upstream library's license by forking around it; whatever the
 linked components require, the shipped image must honor.
 
 The GUARDIAN variant (SPEC §1, 8 MB+) keeps Marauder as an *unmodified* image in `ota_0` and gates
@@ -40,7 +40,7 @@ separation, not the underlying obligation.
 
 ---
 
-## 2. ESP32Marauder app — MIT
+## 2. ESP32Marauder app: MIT
 
 Verified upstream: the ESP32Marauder `LICENSE` is **MIT, © 2020 koko**
 ([`RESEARCH-DIGEST.md`](RESEARCH-DIGEST.md), integration section). MIT is permissive:
@@ -48,7 +48,7 @@ Verified upstream: the ESP32Marauder `LICENSE` is **MIT, © 2020 koko**
 - You may fork, modify, and ship binaries.
 - You must **retain the MIT copyright notice and permission text** in distributions.
 - MIT does **not** require you to publish your modified source. So the gate source can stay private
-  as far as Marauder's own license is concerned — the constraint that follows comes from
+  as far as Marauder's own license is concerned. The constraint that follows comes from
   ESPAsyncWebServer, not from Marauder.
 
 > ⚠ The "MIT, only LGPL file is ESPAsyncWebServer" finding was rated **UNCERTAIN** in the digest
@@ -60,11 +60,11 @@ Verified upstream: the ESP32Marauder `LICENSE` is **MIT, © 2020 koko**
 
 ---
 
-## 3. ESPAsyncWebServer — LGPL-3.0, statically linked (the real obligation)
+## 3. ESPAsyncWebServer: LGPL-3.0, statically linked (the real obligation)
 
 Verified upstream: `me-no-dev/ESPAsyncWebServer` declares **`"license": "LGPL-3.0"`** in its
-`library.json`. ESP32 firmware is a single statically-linked image — there is no dynamic linking on
-the device — so ESPAsyncWebServer is **statically linked into the Marauder/Suicide binary.**
+`library.json`. ESP32 firmware is a single statically-linked image (there is no dynamic linking on
+the device), so ESPAsyncWebServer is **statically linked into the Marauder/Suicide binary.**
 
 LGPL-3.0's relink/notice obligations are weakest under *dynamic* linking (where a user can swap the
 shared library). With **static** linking, **if you distribute the binary to third parties**, LGPL-3.0
@@ -80,7 +80,7 @@ still imposes obligations, in essence:
    component).
 
 These obligations attach **only on distribution to third parties.** Private, owner-only use (which is
-this tool's entire stated purpose — SAFETY.md, THREAT-MODEL.md) does **not** trigger them. The
+the tool's entire stated purpose, per SAFETY.md and THREAT-MODEL.md) does **not** trigger them. The
 "no source publication needed" shorthand is **only safe if the binary is never distributed.** The
 moment you publish a release `.bin` or hand a flashed board to someone else, the static-link LGPL
 obligations above apply.
@@ -92,11 +92,11 @@ obligations above apply.
 
 ---
 
-## 4. `nvs_partition_gen` — Apache-2.0 (host tool only)
+## 4. `nvs_partition_gen`: Apache-2.0 (host tool only)
 
-The host provisioner (`host/provision.py`, SPEC §10) uses Espressif's NVS partition generator —
+The host provisioner (`host/provision.py`, SPEC §10) uses Espressif's NVS partition generator,
 either the `esp-idf-nvs-partition-gen` PyPI package or the vendored `nvs_partition_gen.py`. Verified
-license: **Apache-2.0** (the digest corrects an earlier "BSD/Apache" wording — it is Apache-2.0,
+license: **Apache-2.0** (the digest corrects an earlier "BSD/Apache" wording: it is Apache-2.0,
 no BSD).
 
 - Apache-2.0 is permissive and **does not** copyleft your code.
@@ -104,7 +104,7 @@ no BSD).
   the device binary.
 - If you **vendor** the tool into this repo or redistribute it, preserve its `LICENSE`/`NOTICE` and
   attribution. (Note: on current ESP-IDF, vendoring "the NVS generator" means including the
-  `esp_idf_nvs_partition_gen` package, not a single standalone `.py` — the upstream script is now a
+  `esp_idf_nvs_partition_gen` package, not a single standalone `.py`; the upstream script is now a
   thin shim that delegates to that module.)
 
 `esptool` itself (GPL-2.0) is invoked as a separate host process by the flasher; invoking a program
@@ -115,7 +115,7 @@ is not linking, and it produces no firmware-binary obligation either.
 ## 5. Recommended posture
 
 1. **Confirm the upstream `LICENSE` files** for the exact ESP32Marauder commit you fork and for
-   ESPAsyncWebServer — licenses change between versions, and the MIT-vs-other determination is
+   ESPAsyncWebServer. Licenses change between versions, and the MIT-vs-other determination is
    load-bearing. Scan the full dependency tree for any GPL component.
 2. **Keep this repository private until reviewed.** It is an owner-only defensive tool; there is no
    need to publish binaries. Staying private side-steps every redistribution obligation in §3 while
@@ -124,10 +124,10 @@ is not linking, and it produces no firmware-binary obligation either.
    (Marauder), satisfy the LGPL-3.0 static-link relink + notice + source-availability obligations for
    ESPAsyncWebServer (§3) *or* drop that component from the build, and preserve Apache-2.0 attribution
    for any vendored Espressif tooling. Get the LGPL relink/notice mechanics reviewed by someone
-   qualified — static-link LGPL compliance is the easiest thing here to get subtly wrong.
+   qualified; static-link LGPL compliance is the easiest thing here to get subtly wrong.
 4. **State a license for your own new code** (`firmware/bootgate/*`, `host/*`, docs). It sits on top
    of the inherited terms; the most restrictive linked component (LGPL-3.0) sets the floor for the
    distributed *binary* regardless of what you pick for your sources.
 5. **Re-run this analysis** whenever you bump the Marauder fork or its libraries, or switch FORK ↔
-   GUARDIAN — the linked-component set is what determines the obligation, and it changes with the
+   GUARDIAN. The linked-component set is what determines the obligation, and it changes with the
    build.

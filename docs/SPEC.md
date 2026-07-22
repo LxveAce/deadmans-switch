@@ -1,4 +1,4 @@
-# Suicide Marauder — Canonical Interface Contract (SPEC)
+# Suicide Marauder: Canonical Interface Contract (SPEC)
 
 > **This file is the single source of truth.** Every firmware module, host script, partition
 > table, and flasher change MUST conform to the names, offsets, NVS keys, build flags, and the
@@ -28,25 +28,25 @@ Marauder that the operator owns. It is NOT for evading lawful process. See
 
 ## 1. Two build variants
 
-### Variant FORK *(default — all flash sizes, incl. 4 MB)*
+### Variant FORK *(default, all flash sizes, incl. 4 MB)*
 The gate is compiled **into** a fork of ESP32Marauder, called from `setup()`. It reuses
 Marauder's own display/keyboard/SD drivers, so the password prompt works on every hardware
 class with almost no new UI code. Self-destruct = the running app erases every other partition,
 the SD, and finally its own boot chain.
 
 - Hook: in `ESP32Marauder.ino`, insert `BootGate::run()` **after** `display_obj.RunSetup()` and
-  **before** `settings_obj.begin()`. (Anchor strings, not line numbers — see
-  `firmware/integration/INTEGRATION.md`. Reference region: lines 312–348 of the inspected source.)
+  **before** `settings_obj.begin()`. (Anchor strings, not line numbers; see
+  `firmware/integration/INTEGRATION.md`. Reference region: lines 312-348 of the inspected source.)
 - Partition table = Marauder's normal layout **plus** a `guardcfg` NVS partition.
 
-### Variant GUARDIAN *(optional hardening — 8 MB+ only)*
+### Variant GUARDIAN *(optional hardening, 8 MB+ only)*
 A separate tiny **factory** app gates, then `esp_ota_set_boot_partition(ota_0)` + `esp_restart()`
 into an **unmodified** Marauder in `ota_0`. Cleaner GPL boundary and cleaner brick (the gate is
 not erasing its own running region until the very end, and can re-assert via factory fallback).
 Does **not** fit in 4 MB (two ~1.875 MB app slots + filesystems overflow 4 MB → 8 MB minimum,
 16 MB preferred).
 
-> **Collision (verified, `SDInterface.cpp` ~217–223):** Marauder's own SD updater already calls
+> **Collision (verified, `SDInterface.cpp` ~217-223):** Marauder's own SD updater already calls
 > `esp_ota_get_next_update_partition` + `esp_ota_set_boot_partition`. In GUARDIAN variant the
 > Guardian must select the **factory** partition explicitly and re-arm by erasing `otadata` (or
 > `set_boot_partition(factory)`), and should enable `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE` so a
@@ -64,7 +64,7 @@ Does **not** fit in 4 MB (two ~1.875 MB app slots + filesystems overflow 4 MB �
 | Partition table offset | 0x8000 | 0x8000 |
 | App alignment | 0x10000 (64 KB) | 0x10000 |
 
-- Never hardcode the `otadata`/`nvs` offsets — **read them from the build's partition table**.
+- Never hardcode the `otadata`/`nvs` offsets; **read them from the build's partition table**.
   (Stock IDF default otadata is `0xd000`; Marauder's is `0xe000` because it enlarges `nvs`.)
 - App partitions must be 64 KB aligned or `gen_esp32part.py` errors out.
 
@@ -74,11 +74,11 @@ Does **not** fit in 4 MB (two ~1.875 MB app slots + filesystems overflow 4 MB �
 
 Partition names are canonical. Data partition `guardcfg` (subtype `nvs`) holds the gate config.
 
-### 3.1 FORK on 4 MB (classic ESP32 / CYD) — `firmware/partitions/suicide_4MB.csv`
+### 3.1 FORK on 4 MB (classic ESP32 / CYD): `firmware/partitions/suicide_4MB.csv`
 Derived from Marauder's `min_spiffs`, carving a 12 KB `guardcfg` out of spiffs. On 4 MB the second
-app slot is dropped (Marauder's SD-OTA-self-update is disabled on this build — documented trade).
+app slot is dropped (Marauder's SD-OTA-self-update is disabled on this build, a documented trade).
 
-> **`guardcfg` must be ≥ `0x3000` (3 sectors / 12 KiB)** — the ESP-IDF minimum for a **read/write**
+> **`guardcfg` must be ≥ `0x3000` (3 sectors / 12 KiB)**: the ESP-IDF minimum for a **read/write**
 > NVS partition. The gate persists its runtime counter (`sgate_rt`: `att_ct`/`lock_until`/
 > `wipe_armed`) in this same partition, so it must be read/write. A smaller `guardcfg` makes
 > `nvs_partition_gen` emit a tiny **read-only** image and makes the firmware's read/write
@@ -100,17 +100,17 @@ scratch,   data, 0x40,    0x200000, 0x10000,
 > **`scratch` is mandatory and load-bearing for SAFE_MODE** (§5/§8). It is a dedicated erase
 > target so a safe-mode dry run never touches `guardcfg`/`ota_0`/`nvs`/`spiffs`/the running app.
 > If a build defines `SUICIDE_SAFE_MODE` but the partition table has **no** `scratch` partition,
-> the firmware MUST refuse to simulate (log an error and perform **zero** erases) — it must NEVER
+> the firmware MUST refuse to simulate (log an error and perform **zero** erases); it must NEVER
 > fall back to any live partition. Every partition CSV (4/8/16 MB + guardian) carries a `scratch`.
 
-### 3.2 FORK on 16 MB — `firmware/partitions/suicide_16MB.csv`
+### 3.2 FORK on 16 MB: `firmware/partitions/suicide_16MB.csv`
 Roomy; full spiffs + larger guardcfg + coredump.
 
-### 3.3 GUARDIAN on 16 MB — `firmware/partitions/suicide_guardian_16MB.csv`
+### 3.3 GUARDIAN on 16 MB: `firmware/partitions/suicide_guardian_16MB.csv`
 `factory`(Guardian) + `ota_0`(Marauder) + `otadata` + Marauder `nvs` + `guardcfg` + `spiffs`.
 
 > The 4 MB CSV here is the *committed reference*; the fan-out fills 16 MB + GUARDIAN with exact
-> sizes. **Do not** change `guardcfg`'s name or subtype — host + firmware both key off it.
+> sizes. **Do not** change `guardcfg`'s name or subtype; host + firmware both key off it.
 
 ---
 
@@ -122,8 +122,8 @@ when it rewrites config at runtime.
 
 > **Re-provisioning DOES reset the attempt counter.** The host emits a *whole-partition* `guardcfg.bin`
 > (sized to the `guardcfg` partition), so (re)flashing it with the documented single `esptool
-> write_flash` erases the **entire** `guardcfg` partition — including the co-located `sgate_rt`
-> namespace — and therefore zeroes `att_ct`/`lock_until`/`wipe_armed`. Treat re-provisioning as a
+> write_flash` erases the **entire** `guardcfg` partition (including the co-located `sgate_rt`
+> namespace) and therefore zeroes `att_ct`/`lock_until`/`wipe_armed`. Treat re-provisioning as a
 > fresh start; the lockout counter is not preserved across a reflash. (The host writes only the
 > `sgate` namespace; `sgate_rt` is created and maintained by the firmware at runtime.)
 
@@ -131,8 +131,8 @@ when it rewrites config at runtime.
 | Key | Type | Meaning | Default |
 |-----|------|---------|---------|
 | `cfg_ver` | u8 | schema version | `1` |
-| `salt` | blob[16] | PBKDF2 salt (`os.urandom`) | — |
-| `pwhash` | blob[32] | PBKDF2-HMAC-SHA256(password, salt, iter) | — |
+| `salt` | blob[16] | PBKDF2 salt (`os.urandom`) | n/a |
+| `pwhash` | blob[32] | PBKDF2-HMAC-SHA256(password, salt, iter) | n/a |
 | `kdf_iter` | u32 | PBKDF2 iteration count | `10000` |
 | `kdf_dklen` | u8 | derived-key length | `32` |
 | `armed` | u8 | **master arm** (0=DISARMED safe, 1=ARMED) | `0` |
@@ -144,7 +144,7 @@ when it rewrites config at runtime.
 | `wipe_ota` | u8 | erase Marauder app slot | `1` |
 | `wipe_nvs` | u8 | erase Marauder NVS | `1` |
 | `wipe_spiffs` | u8 | erase SPIFFS | `1` |
-| `wipe_sd` | u8 | best-effort SD file + free-space overwrite (no guaranteed format — see §8) | `1` |
+| `wipe_sd` | u8 | best-effort SD file + free-space overwrite (no guaranteed format; see §8) | `1` |
 | `brick` | u8 | erase boot chain last (true brick) | `0` (T1) / `1` (T2) |
 | `sd_passes`| u8 | SD overwrite passes | `1` |
 | `flash_passes`| u8 | internal-flash random OVERWRITE passes before the final clean erase (§8); `0`=erase-only; `fast_wipe` forces `0` | `1` |
@@ -157,17 +157,17 @@ when it rewrites config at runtime.
 
 > **`kdf_iter` default is `10000` everywhere** (this table, §9, `GateConfig.h` `SUICIDE_KDF_ITER`,
 > and `provision.py` `DEFAULT_KDF_ITER` all agree). On **T1** the iteration count is **moot for
-> offline cracking** — the salted hash is dumpable from plaintext NVS, and PBKDF2 is GPU-cheap, so
+> offline cracking**: the salted hash is dumpable from plaintext NVS, and PBKDF2 is GPU-cheap, so
 > a higher count buys no meaningful offline resistance. Real protection is **T2 (Flash Encryption
 > hides the hash) + a strong passphrase**; tune `kdf_iter` purely for boot-gate UX (~1 s verify).
 
 > **The plaintext password is never stored, never logged, never a CLI argument.** Only
 > `{salt, pwhash, kdf_iter, kdf_dklen}` exist on device. Host zeroizes the password buffer after
-> hashing. NVS is **not** covered by Flash Encryption's app/partition scope automatically — the
+> hashing. NVS is **not** covered by Flash Encryption's app/partition scope automatically. The
 > salted hash is safe in plaintext NVS; if `arm_pin`/`arm_level` must be hidden too, enable NVS
 > encryption with an `nvs_keys` partition (T2 option).
 
-### 4.1 Safety clamps (fail-closed — added after security review)
+### 4.1 Safety clamps (fail-closed, added after security review)
 
 These are invariants the firmware AND host must both enforce. A corrupt/hostile NVS value must
 never be able to *increase* destructiveness.
@@ -177,7 +177,7 @@ never be able to *increase* destructiveness.
   NOT trigger when `att_ct == 0` (no failed attempt ⇒ no wipe), regardless of `max_att`.
 - **Attempt counter fails CLOSED.** If `GateRuntime::commitAttempts()` cannot persist `att_ct`
   (NVS read-only / full / encrypted-misconfig), the gate MUST NOT keep accepting guesses. Bound the
-  *in-RAM* attempt count to `max_att` and trigger (or hard-halt the gate) anyway — never degrade to
+  *in-RAM* attempt count to `max_att` and trigger (or hard-halt the gate) anyway, and never degrade to
   unlimited guesses. `ESP_LOGE` the condition.
 - **`cfg_ver` is read and validated.** `GateConfig::load` reads `cfg_ver`; an unexpected version is
   treated as **not provisioned** (fail-safe: a schema it doesn't understand can't drive a wipe).
@@ -185,13 +185,13 @@ never be able to *increase* destructiveness.
   `nvs` partition (that would destroy Marauder's own config on every boot). Use
   `nvs_flash_init_partition("guardcfg")` and leave the default partition to Marauder's own startup.
 - **`deadman == 0` semantics (clarified).** With `deadman == 0` the arming line is **ignored
-  entirely** — the password alone gates boot, and the line can never cause a wipe. The arming line
+  entirely**: the password alone gates boot, and the line can never cause a wipe. The arming line
   only has any effect when `deadman == 1`. (SAFETY.md is corrected to match.)
 - **RAM hygiene.** On `GATE_PASS`, scrub `cfg.pwhash`/`cfg.salt` from the stack copy before
   Marauder continues (defense-in-depth; the salted hash is low-sensitivity but the posture is
   "never retained").
-- **Fail-safe pull/level pair (host-validated).** A non-fail-safe arming combo — where the pin
-  *idles toward ARMED* so a cut wire reads ARMED and defeats the dead-man — MUST be rejected/warned
+- **Fail-safe pull/level pair (host-validated).** A non-fail-safe arming combo (where the pin
+  *idles toward ARMED* so a cut wire reads ARMED and defeats the dead-man) MUST be rejected/warned
   by `provision.py`: reject `arm_level==1 & arm_pull==pullup(1)` and `arm_level==0 &
   arm_pull==pulldown(2)`. The fail-safe pairs are `level=1 + pulldown` and `level=0 + pullup`.
 
@@ -216,7 +216,7 @@ Exactly one `GATE_INPUT_*` per build. Input class mirrors Marauder's own `HAS_TO
 
 ---
 
-## 6. Boot-gate state machine — `BootGate::run()`
+## 6. Boot-gate state machine: `BootGate::run()`
 
 Returns `GateResult { GATE_PASS, GATE_TRIGGERED }`. Called once, early in `setup()`.
 
@@ -272,9 +272,9 @@ CR/LF-terminated; responses are a single JSON line prefixed with `SM>`. `SM_` co
 | `SM_STATUS` | none (read-only) | Emits `SM>{"cmd":"STATUS",...}`: `provisioned`, `armed`, `deadman`, `max_att`, and the runtime `att_ct` / `wipe_armed` / `resume_count`. |
 | `SM_INFO` | none (read-only) | Emits `SM>{"cmd":"INFO",...}`: `fw_version`, `arm_pin`/`arm_level`/`arm_pull`, the `wipe_*` flags, `sd_passes`, `kdf_iter`, `sd_present`, `brownout_count`, and detected `board`. |
 | `SM_WIPE` | **password** | Routes into the authenticated `wipe` flow (§6): the gate prompts for the password and triggers `SelfDestruct` **only** on a correct password (a wrong one counts as a failed attempt). Only meaningful when master-armed. |
-| `SM_ARM` | — (deferred) | Recognized, returns `{"error":...}`: arming requires re-provisioning from the host (`provision.py --armed 1`). The `armed` flag lives in the `guardcfg` NVS image and cannot be changed at runtime. |
-| `SM_DISARM` | — (deferred) | Recognized, returns `{"error":...}`: disarming requires re-provisioning (`provision.py --armed 0`). |
-| `SM_SET_PASSWORD` | — (deferred) | Recognized, returns `{"error":...}`: a password change requires re-provisioning (new salt + hash). **Not implemented in firmware** — it does not modify `guardcfg` at runtime. |
+| `SM_ARM` | n/a (deferred) | Recognized, returns `{"error":...}`: arming requires re-provisioning from the host (`provision.py --armed 1`). The `armed` flag lives in the `guardcfg` NVS image and cannot be changed at runtime. |
+| `SM_DISARM` | n/a (deferred) | Recognized, returns `{"error":...}`: disarming requires re-provisioning (`provision.py --armed 0`). |
+| `SM_SET_PASSWORD` | n/a (deferred) | Recognized, returns `{"error":...}`: a password change requires re-provisioning (new salt + hash). **Not implemented in firmware**: it does not modify `guardcfg` at runtime. |
 
 Notes:
 - There is **no** `SM_FW_VERSION` command. The firmware version is only the `fw_version` field inside the `SM_INFO` response.
@@ -286,7 +286,7 @@ Notes:
 ## 7. Per-board arming pin map (defaults; never a strapping pin)
 
 Forbidden (strapping/boot): classic `0,2,12,15` (+5 on some); S3 `0,3,45,46`; C3 `2,8,9`.
-GPIO34–39 are input-only → need an external 10 kΩ pull-down (`arm_pull` ignored in HW).
+GPIO34-39 are input-only → need an external 10 kΩ pull-down (`arm_pull` ignored in HW).
 
 | Board class | Default `arm_pin` | Notes |
 |-------------|-------------------|-------|
@@ -301,77 +301,77 @@ NOT-ARMED. This makes tamper/removal a dead-man trigger **when armed**.
 
 ---
 
-## 8. Self-destruct ordering — `SelfDestruct::trigger()`
+## 8. Self-destruct ordering: `SelfDestruct::trigger()`
 
 There is **no runtime crypto-erase on ESP32** (AES key eFuse is HW read+write-protected). Wipe is
 bulk erase + overwrite. Non-abortable once started. Under `SUICIDE_SAFE_MODE`, every step targets a
 scratch partition / logs only.
 
 1. **SD** (if `wipe_sd` & card present, and not `fast_wipe`): `wipeSDImpl` attempts a **full-LBA
-   raw-sector wipe** first (forensic-grade) — via the SDMMC host driver it writes every sector from
+   raw-sector wipe** first (forensic-grade): via the SDMMC host driver it writes every sector from
    LBA 0 to the last, bypassing the filesystem (`sd_passes >= 2` = random pass(es) then a final zero
    pass; `1` = zeros). If raw access is unavailable (SPI-only SD, no SDMMC host, init failure) it
    **falls back** to a file-level overwrite (`esp_fill_random`, `sd_passes` passes) + a free-space
    fill. The raw path is forensic-grade for the addressable LBA range; both paths remain subject to
-   **FTL** wear-leveling / over-provisioning (remapped or spare cells may survive) — documented, not
+   **FTL** wear-leveling / over-provisioning (remapped or spare cells may survive), documented, not
    hidden. At-rest SD encryption (T2) is the only absolute guarantee.
-2. **Internal data — OVERWRITE-then-ERASE + verify** (red-team / "write over all deleted items"):
+2. **Internal data, OVERWRITE-then-ERASE + verify** (red-team / "write over all deleted items"):
    for `ota_0`/`ota_1`/`factory` (non-running app slots, if `wipe_ota`), `spiffs` (if `wipe_spiffs`),
-   Marauder `nvs` (if `wipe_nvs`), `coredump`, `otadata`, `nvs_keys` (T2 NVS key — else a dumped NVS
+   Marauder `nvs` (if `wipe_nvs`), `coredump`, `otadata`, `nvs_keys` (T2 NVS key; else a dumped NVS
    could be decrypted), `scratch` (the SAFE dry-run region), then `guardcfg` **last**.
    - **The load-bearing step is the final `esp_partition_erase_range` to 0xFF.** On NOR flash a single
-     erase is **forensically sufficient** (no magnetic remanence — RESEARCH-DIGEST). The optional
+     erase is **forensically sufficient** (no magnetic remanence; RESEARCH-DIGEST). The optional
      `flash_passes` random overwrite passes (`erase → esp_partition_write(esp_fill_random)` → final
      erase) are **defense-in-depth only** ("write over deleted items"); they add power-loss exposure
      with no NOR benefit, so `fast_wipe` **and the resume path force 0 passes**, and `flash_passes=0`
      (erase-only) still fully meets the no-trace bar.
    - **Verification reads RAW flash** via `esp_flash_read` (not `esp_partition_read`), so an erased
-     0xFF sector verifies correctly even on a **flash-encrypted (T2)** partition — `esp_partition_read`
+     0xFF sector verifies correctly even on a **flash-encrypted (T2)** partition; `esp_partition_read`
      would transparently *decrypt* 0xFF into non-0xFF and falsely report failure.
-   - A failed erase/verify is **not** counted as complete — the tombstone stays set and the next boot
+   - A failed erase/verify is **not** counted as complete: the tombstone stays set and the next boot
      retries (erase-only + SD-skipped, so a resume converges within the `MAX_WIPE_RESUMES` budget).
-3. **Brick** (if `brick`): from an `IRAM_ATTR` routine that does not return to flash — raw-erase the
+3. **Brick** (if `brick`): from an `IRAM_ATTR` routine that does not return to flash, raw-erase the
    partition table (0x8000), the bootloader (0x1000 classic / 0x0 S3-C3), and the running app/factory
    region. **This self-erase-of-the-running-app is the one UNVERIFIED primitive** → see
    `docs/SPIKE-PLAN.md`; requires `CONFIG_SPI_FLASH_DANGEROUS_WRITE_ALLOWED=y`. (The brick leaves a
    blank chip = no trace; per-region overwrite is intentionally NOT added here to keep the fragile,
-   cache-disabled IRAM window minimal — the overwrite guarantee applies to the Stage-2 data path.)
+   cache-disabled IRAM window minimal; the overwrite guarantee applies to the Stage-2 data path.)
 
 T1 (`brick=0`) leaves a re-flashable but data-wiped board. T2 (`brick=1` + Secure Boot/FE) leaves an
 unrecoverable board whose ciphertext is gone.
 
 ---
 
-## 9. Cryptography — `GateCrypto`
+## 9. Cryptography: `GateCrypto`
 
 - **PBKDF2-HMAC-SHA256** via mbedtls (bundled with Arduino-ESP32). Argon2id is impossible (OWASP
   19 MiB min > ESP32 RAM).
 - Host and device MUST agree on `{iter, dklen, salt}`. **Default `iter=10000`** (≈1 s verify on a
-  classic ESP32-D0WD @240 MHz — **`150000` measured ≈16.7 s on hardware, far too slow** for a boot
+  classic ESP32-D0WD @240 MHz; **`150000` measured ≈16.7 s on hardware, far too slow** for a boot
   gate), `dklen=32`. Record the chosen value in `guardcfg.kdf_iter`.
   > **Why a low iteration count is correct here (measured).** The gate wipes after `max_att`
   > (default 2) wrong tries, so *online* brute-force is impossible regardless of KDF cost. PBKDF2 is
   > GPU-cheap, so a high count does **not** meaningfully protect the salted hash against an *offline*
-  > attacker who has dumped the flash — that protection is **T2 (Flash Encryption hides the hash) + a
+  > attacker who has dumped the flash; that protection is **T2 (Flash Encryption hides the hash) + a
   > strong passphrase**, not iteration count. Tune `iter` purely for UX (~1 s).
 - `verify()` uses a **constant-time** compare (`mbedtls_ct`/manual) against `pwhash`.
 - Host: `hashlib.pbkdf2_hmac('sha256', pw, salt, iter, 32)`; `salt=os.urandom(16)`; zeroize `pw`.
 
 ---
 
-## 10. Host provisioning — `host/provision.py`
+## 10. Host provisioning: `host/provision.py`
 
 Inputs (password via getpass/stdin, **never argv**): `password, arm_pin, arm_level, arm_pull,
 max_attempts, deadman, armed, wipe_* , brick, kdf_iter`.
 
 Outputs (into a build/bundle dir):
-- `guardcfg.bin` — NVS partition image sized to the `guardcfg` partition, built from a generated
+- `guardcfg.bin`: an NVS partition image sized to the `guardcfg` partition, built from a generated
   `nvs_config.csv` via **`nvs_partition_gen`** (Apache-2.0; vendored or `pip install
-  esp-idf-nvs-partition-gen` — **confirmed NOT bundled with esptool**).
-- `otadata_blank.bin` — `0x2000` of `0xFF` (forces first boot into factory/Guardian). **GUARDIAN
+  esp-idf-nvs-partition-gen`, **confirmed NOT bundled with esptool**).
+- `otadata_blank.bin`: `0x2000` of `0xFF` (forces first boot into factory/Guardian). **GUARDIAN
   only.**
 - A manifest **`bundle.json`** that is the *complete* flash list the flasher consumes: a `files`
-  array of `{file, offset}` for **every** image to write — `bootloader.bin`@(`0x0`|`0x1000` per
+  array of `{file, offset}` for **every** image to write: `bootloader.bin`@(`0x0`|`0x1000` per
   chip), `partitions.bin`@`0x8000`, the otadata seed (see below), `app.bin`@`0x10000`,
   `guardcfg.bin`@`<guardcfg offset>`. Offsets for `guardcfg`/`otadata` are **read from the chosen
   partition CSV** (never hardcoded `0xe000`); `partitions`/`app` are fixed; bootloader is
@@ -388,7 +388,7 @@ Never log the password or hash. Zeroize the password bytearray after use.
 
 ---
 
-## 11. Flasher integration — `headless-marauder-gui`
+## 11. Flasher integration: `headless-marauder-gui`
 
 > **Correction (shipped):** integration shipped in **Cyber Controller** (`LxveAce/cyber-controller`), not
 > `headless-marauder-gui`. Real symbols: `src/core/suicide_setup.build` → `provision.build_bundle(args,
@@ -401,7 +401,7 @@ Additive only; plain Marauder stays the core/default.
 - `marauder_core/flasher.py`: add `suicide_bundle_files(chip, bundle_dir)` and
   `flash_suicide(port, chip, bundle, on_line, baud)` building **one** `write_flash` pair list:
   `bootloader@(0x0|0x1000)`, `partitions@0x8000`, `boot_app0@<real>`, `app@0x10000`,
-  `guardcfg@<nvs off>`, `otadata_blank@<otadata off>` — offsets from the bundle manifest, reusing
+  `guardcfg@<nvs off>`, `otadata_blank@<otadata off>`, with offsets from the bundle manifest, reusing
   the existing `_run_stream` / `--flash_size detect` / `-z` plumbing.
 - `gui_qt/app.py` `FlasherDialog`: a single **"Suicide"** checkbox. Unchecked → today's behavior.
   Checked → reveal a minimal sub-panel: **password**, **arm pin/level**, **dead-man** toggle; the
@@ -417,7 +417,7 @@ Additive only; plain Marauder stays the core/default.
 
 Every interactive widget across **all three** front-ends gets hover help:
 - **Qt** (`gui_qt/app.py`): `setToolTip()` on every button/checkbox/radio/combo/lineedit/menu action
-  /table header — extend the existing `_cmd_tooltip()` pattern with a central `TIPS` dict.
+  /table header, extending the existing `_cmd_tooltip()` pattern with a central `TIPS` dict.
 - **Tk** (`gui/*.py`): add a small `Tooltip` helper (Tk has no native tooltip) and attach it.
 - **Textual TUI** (`tui/app.py`): set the `tooltip=` property on widgets.
 
@@ -429,22 +429,22 @@ Tooltip copy lives in one place per front-end so it stays consistent and is easy
 
 | Item | Status | Where handled |
 |------|--------|---------------|
-| Self-erase of running app | **UNVERIFIED** — needs sacrificial-board spike | `docs/SPIKE-PLAN.md`, gated by SAFE_MODE |
+| Self-erase of running app | **UNVERIFIED**: needs sacrificial-board spike | `docs/SPIKE-PLAN.md`, gated by SAFE_MODE |
 | T1 vs T2 (Secure Boot/FE) | decision: build both, T1 default, T2 opt-in | `§8`, flasher `§11` |
 | GPL/LGPL distribution (ESPAsyncWebServer LGPL static link) | needs legal note before redistributing binaries | `docs/LICENSING.md` |
 | SD remanence (FTL) | documented best-effort, not guaranteed | `§8`, `SAFETY.md` |
-| Low-battery boot policy | **brownout/undervoltage boot SUPPRESSES destruction (never wipes), but the CORRECT PASSWORD IS STILL REQUIRED to boot** (no bypass) — reliability-first *without* a free gate skip | `BootGate` / `GateConfig`, `THREAT-MODEL.md` (brownout weaponization) |
+| Low-battery boot policy | **brownout/undervoltage boot SUPPRESSES destruction (never wipes), but the CORRECT PASSWORD IS STILL REQUIRED to boot** (no bypass), reliability-first *without* a free gate skip | `BootGate` / `GateConfig`, `THREAT-MODEL.md` (brownout weaponization) |
 | KDF iteration tuning | default 10000, tune on target for ~1 s UX | `§9` |
 | Supply chain (flash-time trust + tool pinning) | flash host is trusted at flash time; firmware/tools pinned toward known-good versions | `§14`, `THREAT-MODEL.md` |
 
 ---
 
-## 14. Supply chain — flash-time trust and tool pinning
+## 14. Supply chain: flash-time trust and tool pinning
 
 The provisioning/flash host is part of the **trusted computing base at flash time**: it types and
 hashes the password, runs `provision.py`/`nvs_partition_gen`/`esptool`, and writes the bundle. A
 compromised host at flash time can substitute firmware, weaken the config, or capture the password
-**before** any on-device protection exists — no on-device control can defend against a hostile
+**before** any on-device protection exists; no on-device control can defend against a hostile
 flasher. So flash only from a host you trust, over a known-good toolchain.
 
 To shrink that window, the host tools and firmware images should be **pinned toward exact/known-good
@@ -453,5 +453,5 @@ build `.bin`s. `host/requirements.txt` (provisioner) and `headless-marauder-gui/
 (flasher) pin toward known-good versions today; the **next hardening step** is to add wheel hashes
 (`pip install --require-hashes`) and pin firmware bundles by signed tag / out-of-band digest. This
 complements the bundle integrity note in `THREAT-MODEL.md`: a `sha256` co-located in the same
-`bundle.json` guards against corruption/accident, not a determined attacker — real integrity needs an
+`bundle.json` guards against corruption/accident, not a determined attacker; real integrity needs an
 **out-of-band/signed manifest**.

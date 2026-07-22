@@ -1,4 +1,4 @@
-# SPIKE-PLAN — settle the UNVERIFIED self-erase before `brick=1` ships
+# SPIKE-PLAN: settle the UNVERIFIED self-erase before `brick=1` ships
 
 > **STATUS: REQUIRED before any device is provisioned with `brick=1`.** This plan exists to settle the
 > one primitive the research could not confirm from documentation: a running ESP32 app erasing its
@@ -25,7 +25,7 @@ From [`RESEARCH-DIGEST.md`](RESEARCH-DIGEST.md) (self-wipe section), against ESP
   everything it touches must be in **IRAM/DRAM** (`IRAM_ATTR`, no flash-resident strings/constants).
 - Wipe-others-first, **boot chain last** is the correct order: each erase is blocking, and once the
   table/bootloader/app are `0xFF` the CPU can no longer fetch flash-resident code. After the
-  partition table is gone, `esp_partition_*` is invalid — use raw `esp_flash_erase_region`.
+  partition table is gone, `esp_partition_*` is invalid; use raw `esp_flash_erase_region`.
 - Bootloader offset is **chip-dependent**: `0x1000` classic ESP32/S2, `0x0` on S3/C3/C6/H2. Partition
   table at `0x8000`. Resolve per chip; do not hardcode `0x1000`.
 - A single NOR erase to `0xFF` is forensically sufficient (no magnetic remanence); multi-pass is
@@ -48,7 +48,7 @@ This spike answers exactly that, on hardware, with flash dumps as evidence.
 ## 2. Equipment
 
 - A **sacrificial** ESP32 board, **same chip family and flash size** as the production target (run
-  the spike separately per target class — classic ESP32 4 MB, S3 16 MB, etc.; the bootloader offset
+  the spike separately per target class: classic ESP32 4 MB, S3 16 MB, etc.; the bootloader offset
   and self-erase timing differ by chip).
 - `esptool` on the host (for `read_flash`, `image_info`, `write_flash`).
 - Serial console capture (to timestamp the last log line before the CPU dies).
@@ -61,9 +61,9 @@ This spike answers exactly that, on hardware, with flash dumps as evidence.
 Build the FORK app with the **real** (non-SAFE) `SelfDestruct::brickBootChain` path enabled:
 
 - `-DSUICIDE_FORK`
-- **NOT** `-DSUICIDE_SAFE_MODE` (SAFE_MODE never performs the real brick — it only logs).
+- **NOT** `-DSUICIDE_SAFE_MODE` (SAFE_MODE never performs the real brick; it only logs).
 - `sdkconfig`/build with `CONFIG_SPI_FLASH_DANGEROUS_WRITE_ALLOWED=y` (without it the erase of the
-  table/bootloader/own-app `abort()`s instantly — that is the central gate).
+  table/bootloader/own-app `abort()`s instantly, which is the central gate).
 - Provision a `guardcfg` with `armed=1`, `brick=1`, and the data-wipe flags as the production config
   will use (so the spike exercises the real ordering: SD → internal data → guardcfg last → brick).
 - Trigger via the fastest deterministic path: `max_att` wrong passwords over serial, or the
@@ -88,16 +88,16 @@ esptool --chip <chip> --port <PORT> read_flash 0x10000 0x1E0000 before_app.bin  
 esptool --chip <chip> --port <PORT> read_flash 0x1F0000 0x2000  before_guardcfg.bin   # guardcfg (4MB layout)
 ```
 Record sizes/SHA256 (`esptool image_info before_app.bin`) so the AFTER comparison is exact. Pull the
-real offsets from the board's partition CSV — do not assume.
+real offsets from the board's partition CSV; do not assume.
 
 ### 4.2 Fire the trigger
 Power the board, trigger the wipe (§3), and **capture the serial log with timestamps.** Note the last
 line printed before output stops (e.g. the `panicIndicate` signal and the last stage entered). A real
-brick should stop logging when the boot chain goes — that loss of output is itself a data point.
+brick should stop logging when the boot chain goes; that loss of output is itself a data point.
 
 ### 4.3 Capture the AFTER image
 Re-enter ROM serial download mode (the mask-ROM downloader survives the erase on a T1/no-encryption
-part — it is the documented reflash path) and dump the same ranges:
+part; it is the documented reflash path) and dump the same ranges:
 ```
 esptool --chip <chip> --port <PORT> read_flash 0x0    0x10000  after_bootchain.bin
 esptool --chip <chip> --port <PORT> read_flash 0x10000 0x1E0000 after_app.bin
@@ -119,17 +119,17 @@ the one the CPU was *executing from*, so an incomplete erase there is exactly th
 
 ---
 
-## 5. A/B test — is `esp_partition_erase_range` complete on this NOR part?
+## 5. A/B test: is `esp_partition_erase_range` complete on this NOR part?
 
 The data-partition wipe (Stage 2, SPEC §8) uses `esp_partition_erase_range` over `ota_0`, `spiffs`,
 `nvs`, `coredump`, then `guardcfg` last. We must confirm that call erases the **entire** partition
 range on the actual NOR chip, with no residual stale sectors (wear-leveled FS layers keep spare
-copies — the digest flags this).
+copies; the digest flags this).
 
-**Arm A — full-range erase (the design):** call `esp_partition_erase_range(p, 0, p->size)` for each
+**Arm A, full-range erase (the design):** call `esp_partition_erase_range(p, 0, p->size)` for each
 data partition. Dump each partition's full range with `read_flash` afterward; assert **all `0xFF`**.
 
-**Arm B — logical delete only (the wrong way, as a control):** on a second sacrificial board, only
+**Arm B, logical delete only (the wrong way, as a control):** on a second sacrificial board, only
 `nvs_flash_erase` / SPIFFS-format / delete keys-and-files instead of full-range erase. Dump the same
 ranges.
 
@@ -147,14 +147,14 @@ the primitive is incomplete.
 
 1. **Device fails to boot** after the trigger: on power-cycle the ROM bootloader finds no valid
    image (invalid table/bootloader magic) and does not run the app. (Reaching ROM serial download
-   mode is **expected and fine** on a T1 part — that is the reflash recovery path, not a failure.)
-2. **Every targeted range reads `0xFF`** in the AFTER dump — bootloader, partition table, the running
+   mode is **expected and fine** on a T1 part; that is the reflash recovery path, not a failure.)
+2. **Every targeted range reads `0xFF`** in the AFTER dump: bootloader, partition table, the running
    app region, and the data partitions selected by the wipe flags (incl. `guardcfg` last). No
    residual plaintext in any range that was supposed to be erased.
 3. **No mid-wipe crash that leaves a partially-recoverable device.** The serial log must show the
    wipe progressed through Stage 1 → Stage 2 → Stage 3 in order; the only acceptable "stop" is output
    ceasing when the boot chain itself is erased at the very end. A crash/`abort()`/reboot-loop that
-   stops Stage 2 early (leaving `ota_0`/`spiffs`/`nvs` partly intact) is a **FAIL** — that is the
+   stops Stage 2 early (leaving `ota_0`/`spiffs`/`nvs` partly intact) is a **FAIL**; that is the
    IRAM/cache hazard from §1 manifesting.
 4. **A/B (§5) confirms** `esp_partition_erase_range` full-range erase is complete (Arm A all-`0xFF`),
    and logical delete (Arm B) is demonstrably insufficient.
@@ -166,15 +166,15 @@ the primitive is incomplete.
 ## 7. What to conclude / how to record it
 
 Write the outcome back into the repo (a short results note next to this plan, plus flip the relevant
-"UNVERIFIED" lines in SPEC §13 and SAFETY.md once cleared — coordinate that edit; do not silently
+"UNVERIFIED" lines in SPEC §13 and SAFETY.md once cleared. Coordinate that edit; do not silently
 change the contract):
 
 - **PASS (all of §6):** `brick=1` is cleared for that specific chip + flash-size class. Record the
   exact build flags, `sdkconfig` (`CONFIG_SPI_FLASH_DANGEROUS_WRITE_ALLOWED=y`), offsets, and dump
-  hashes that produced the pass. The clearance is **per chip class** — a pass on classic ESP32 4 MB
+  hashes that produced the pass. The clearance is **per chip class**: a pass on classic ESP32 4 MB
   does **not** clear S3 16 MB.
 - **PARTIAL (boots dead but app range not fully `0xFF`, or Stage 2 incomplete):** do **not** ship
-  `brick=1`. The device is "looks bricked but forensically partial" — the worst outcome for an
+  `brick=1`. The device is "looks bricked but forensically partial", the worst outcome for an
   anti-forensic tool. Fix the IRAM-residency / ordering / cache-disable handling and re-spike. Until
   fixed, T1 (`brick=0`, data-wiped + reflashable) remains the only supported posture.
 - **CRASH mid-wipe:** treat as PARTIAL. The most likely cause is a flash-resident symbol/constant

@@ -13,36 +13,37 @@
 
 Successor to [Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder), the original ESP32 anti-forensic wipe system.
 
-> ⚠️ **Authorized, lawful use only.** A security-research tool — use it only on devices you own or have explicit permission to test. It permanently destroys data by design. Provided as-is, no warranty; you assume all risk. See [DISCLAIMER.md](DISCLAIMER.md).
+> ⚠️ **Authorized, lawful use only.** This is a security-research tool. Use it only on devices you own or have explicit permission to test. It permanently destroys data by design. Provided as-is, no warranty; you assume all risk. See [DISCLAIMER.md](DISCLAIMER.md).
 
 ---
 
 <!-- STATUS-ROADMAP:START -->
 ## Status
 
-**Latest release: [v1.0.0](https://github.com/LxveAce/deadmans-switch/releases)** — cross-platform provisioner binaries
-+ a green release pipeline; the boot-gate firmware is complete and ships through
+**Latest release: [v1.0.0](https://github.com/LxveAce/deadmans-switch/releases)**: cross-platform
+provisioner binaries plus a green release pipeline. The boot-gate firmware is complete and ships through
 [Cyber Controller](https://github.com/LxveAce/cyber-controller).
 
-**Honest scope:** firmware is hardware-validated on **classic ESP32 (CYD) only** — S2/S3/C3/C6 validation is pending on
-sacrificial hardware. The standalone firmware-build CI leg is a known-WIP best-effort job (fails at the link stage under
-arduino-esp32 3.x, so it's `continue-on-error` and never blocks the repo — full diagnosis in
-[`docs/CI-STATUS.md`](docs/CI-STATUS.md)). It does what's documented; where it's unproven, it says so — not "stable/finished".
+**Scope:** the firmware is hardware-validated on **classic ESP32 (CYD) only**. S2/S3/C3/C6 validation is
+pending on sacrificial hardware. The standalone firmware-build CI leg is a known-WIP best-effort job. It
+fails at the link stage under arduino-esp32 3.x, so it runs `continue-on-error` and never blocks the repo
+(full diagnosis in [`docs/CI-STATUS.md`](docs/CI-STATUS.md)). It does what's documented, and where it's
+unproven it says so instead of claiming "stable" or "finished".
 
-**What's next:** Tails-image host flashing (signature/checksum-verified, removable-target-only) · a fail-closed
-"physical key" access gate · one canonical serial-command contract ([`docs/SPEC.md`](docs/SPEC.md)) · broader
-board/firmware validation. Full version history → [CHANGELOG.md](CHANGELOG.md).
+**What's next:** Tails-image host flashing (signature/checksum-verified, removable-target-only) · a
+fail-closed "physical key" access gate · one canonical serial-command contract ([`docs/SPEC.md`](docs/SPEC.md)) ·
+broader board/firmware validation. Full version history → [CHANGELOG.md](CHANGELOG.md).
 <!-- STATUS-ROADMAP:END -->
 
 ---
 
 ## What it does
 
-A firmware-agnostic **dead-man gate** that sits between power-on and your security firmware. If the operator cannot authenticate — or the hardware kill line is cut — the device obliterates its own flash, SD card, and (optionally) its boot chain before anything can be recovered.
+A firmware-agnostic **dead-man gate** that sits between power-on and your security firmware. If the operator cannot authenticate, or the hardware kill line is cut, the device obliterates its own flash, SD card, and (optionally) its boot chain before anything can be recovered.
 
-Dead Man's Switch is not tied to any single firmware. The **Guardian** variant works with any ESP32-based firmware — Marauder, GhostESP, Bruce, HaleHound, Meshtastic, or anything else. The **Fork** variant integrates directly into ESP32 Marauder for tighter coupling (and fits all flash sizes, including 4 MB).
+Dead Man's Switch is not tied to any single firmware. The **Guardian** variant works with any ESP32-based firmware: Marauder, GhostESP, Bruce, HaleHound, Meshtastic, or anything else. The **Fork** variant integrates directly into ESP32 Marauder for tighter coupling (and fits all flash sizes, including 4 MB).
 
-> **This is a DEFENSIVE, owner-only tool** — the same category as Kali's LUKS Nuke, GrapheneOS's duress PIN, and BusKill. It is for protecting hardware you own, not for evading lawful process. Read [`docs/SAFETY.md`](docs/SAFETY.md) and [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) before flashing or arming anything.
+> **This is a DEFENSIVE, owner-only tool**, in the same category as Kali's LUKS Nuke, GrapheneOS's duress PIN, and BusKill. It is for protecting hardware you own, not for evading lawful process. Read [`docs/SAFETY.md`](docs/SAFETY.md) and [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) before flashing or arming anything.
 
 ---
 
@@ -56,23 +57,23 @@ The gate runs once, early in boot, before the host firmware's UI loads. Its beha
 - **Wrong password ×N → wipe.** A power-cycle-safe attempt counter is persisted *before* responding, so a mid-attempt reset cannot reset it. The default threshold is **2**.
 - **Dead-man line cut → wipe (when armed).** A hardware arming GPIO must read the "armed" level. Cut, unplug, or tamper with the wire and the board wipes.
 
-The full state machine, NVS schema, and invariants are defined in [`docs/SPEC.md`](docs/SPEC.md) — the canonical contract that firmware, host tooling, and partition tables all conform to.
+The full state machine, NVS schema, and invariants are defined in [`docs/SPEC.md`](docs/SPEC.md), the canonical contract that firmware, host tooling, and partition tables all conform to.
 
 ---
 
 ## ✨ Features
 
-- **ROM SPI bypass brick** — bypasses the IDF flash protection layer via the ESP32's ROM SPI driver to erase the running application from within itself. Hardware-validated on classic ESP32 (CYD 2432S028).
-- **Overwrite-then-erase + verify** — forensic-grade wipe of internal partitions: random overwrite, then erase, then **raw-read** verification (`esp_flash_read`) that every byte is `0xFF` — so an erased sector verifies correctly even under Flash Encryption (T2).
-- **SD full-LBA raw wipe** — raw sector-level erasure of the entire SD card (LBA 0 through last sector) via the SDMMC host driver, bypassing the filesystem. Multi-pass support with secure-erase patterns; file-level overwrite fallback when raw access is unavailable.
-- **Guardian dead-man gate** — standalone, firmware-agnostic factory partition that gates boot, then jumps to an unmodified firmware in OTA. Works with any ESP32-based firmware, not just Marauder.
-- **Password parity validation** — PBKDF2-HMAC-SHA256 password challenge at boot, constant-time compared. Plaintext is never stored, never logged, never transmitted. Host-side provisioning only.
-- **2-fail wipe** — power-cycle-safe attempt counter persisted before responding. Two wrong passwords and everything wipes. Fails closed: if the counter cannot persist, the gate never degrades to unlimited guesses.
-- **GPIO dead-man switch** — hardware arming line tied to a GPIO pin. Cut the wire, unplug, or tamper — the board wipes. Host tooling rejects non-fail-safe pull/level combinations.
-- **Brownout hardening** — hardware brownout detection, ADC voltage monitoring, brownout event logging to NVS, and fast-wipe prioritization. A low-voltage boot **suppresses destruction but still requires the correct password** — no free gate skip.
-- **Fast wipe mode** — skip the SD wipe and go straight to flash erase + boot brick in seconds. Designed for battery-powered or brownout-prone deployments.
-- **Dashboard hooks** — serial command interface for remote management by [Cyber Controller](https://github.com/LxveAce/cyber-controller) or any host tool. `SM_STATUS` and `SM_INFO` are read-only queries; `SM_WIPE` routes into the password-authenticated wipe flow. `SM_ARM` / `SM_DISARM` / `SM_SET_PASSWORD` are recognized but reply that they require re-provisioning from the host — the `armed` flag and password hash live in the `guardcfg` NVS image and are not modifiable at runtime. There is no `SM_FW_VERSION` command; the firmware version is a field inside the `SM_INFO` response. See [`docs/SPEC.md`](docs/SPEC.md) §6.1 for the canonical command table.
-- **Multiple input backends** — serial (default, headless), on-screen touch keypad, M5StickC buttons, M5Cardputer QWERTY, and Marauder Mini joystick gate-input drivers.
+- **ROM SPI bypass brick.** Bypasses the IDF flash protection layer via the ESP32's ROM SPI driver to erase the running application from within itself. Hardware-validated on classic ESP32 (CYD 2432S028).
+- **Overwrite-then-erase + verify.** A forensic-grade wipe of internal partitions: random overwrite, then erase, then a **raw-read** verification (`esp_flash_read`) that every byte is `0xFF`, so an erased sector verifies correctly even under Flash Encryption (T2).
+- **SD full-LBA raw wipe.** Raw sector-level erasure of the entire SD card (LBA 0 through last sector) via the SDMMC host driver, bypassing the filesystem. Multi-pass support with secure-erase patterns, and a file-level overwrite fallback when raw access is unavailable.
+- **Guardian dead-man gate.** A standalone, firmware-agnostic factory partition that gates boot, then jumps to an unmodified firmware in OTA. Works with any ESP32-based firmware, not just Marauder.
+- **Password parity validation.** A PBKDF2-HMAC-SHA256 password challenge at boot, constant-time compared. Plaintext is never stored, logged, or transmitted. Host-side provisioning only.
+- **2-fail wipe.** A power-cycle-safe attempt counter persisted before responding. Two wrong passwords and everything wipes. Fails closed: if the counter cannot persist, the gate never degrades to unlimited guesses.
+- **GPIO dead-man switch.** A hardware arming line tied to a GPIO pin. Cut the wire, unplug it, or tamper with it and the board wipes. Host tooling rejects non-fail-safe pull/level combinations.
+- **Brownout hardening.** Hardware brownout detection, ADC voltage monitoring, brownout event logging to NVS, and fast-wipe prioritization. A low-voltage boot **suppresses destruction but still requires the correct password**, so there is no free gate skip.
+- **Fast wipe mode.** Skip the SD wipe and go straight to flash erase plus boot brick in seconds. Meant for battery-powered or brownout-prone deployments.
+- **Dashboard hooks.** A serial command interface for remote management by [Cyber Controller](https://github.com/LxveAce/cyber-controller) or any host tool. `SM_STATUS` and `SM_INFO` are read-only queries; `SM_WIPE` routes into the password-authenticated wipe flow. `SM_ARM` / `SM_DISARM` / `SM_SET_PASSWORD` are recognized but reply that they require re-provisioning from the host, because the `armed` flag and password hash live in the `guardcfg` NVS image and are not modifiable at runtime. There is no `SM_FW_VERSION` command; the firmware version is a field inside the `SM_INFO` response. See [`docs/SPEC.md`](docs/SPEC.md) §6.1 for the canonical command table.
+- **Multiple input backends.** Serial (default, headless), on-screen touch keypad, M5StickC buttons, M5Cardputer QWERTY, and Marauder Mini joystick gate-input drivers.
 
 ---
 
@@ -82,14 +83,14 @@ The full state machine, NVS schema, and invariants are defined in [`docs/SPEC.md
 |-------|--------|-------|
 | ESP32 classic (Gold, CYD, DevKit) | **Hardware-validated** | ROM SPI bypass confirmed. Full wipe + brick verified on a blank classic ESP32 and on CYD 2432S028. |
 
-The Guardian standalone gate was hardware-validated on a blank classic ESP32 — a wrong-password trigger over serial obliterated the entire flash (bootloader, partition table, app, and config all read back as `0xFF`). See [`docs/HARDWARE-TEST.md`](docs/HARDWARE-TEST.md).
+The Guardian standalone gate was hardware-validated on a blank classic ESP32: a wrong-password trigger over serial obliterated the entire flash (bootloader, partition table, app, and config all read back as `0xFF`). See [`docs/HARDWARE-TEST.md`](docs/HARDWARE-TEST.md).
 
 ---
 
 ## Board & firmware support
 
 **Full matrix → [`docs/FIRMWARE-SUPPORT.md`](docs/FIRMWARE-SUPPORT.md)** (every Cyber Controller firmware
-profile mapped to its gate-support status, honest about shipped vs. unvalidated vs. out-of-scope).
+profile mapped to its gate-support status: shipped, unvalidated, or out-of-scope).
 
 Quick version:
 
@@ -97,10 +98,10 @@ Quick version:
 |---|---|
 | **Shipped + hardware-validated** | Marauder **FORK** on **classic ESP32** (CYD 2432S028 + blank dev board: wrong-password ×2 wiped flash to `0xFF`). |
 | **Provisionable, not yet HW-validated** | ESP32-S2 / S3 / C3 / C5 / C6 (the stage-3 self-brick falls back to `esp_flash` off classic ESP32). C5 is host-provisionable now (0x2000 bootloader); its firmware build waits on the upstream Marauder C5 port. |
-| **Architecturally supported (GUARDIAN), not yet wired** | *Any* ESP32 firmware in `ota_0` — GhostESP, Bruce, HaleHound, Meshtastic, ESP32-DIV, … (needs 8 MB+). |
+| **Architecturally supported (GUARDIAN), not yet wired** | *Any* ESP32 firmware in `ota_0`: GhostESP, Bruce, HaleHound, Meshtastic, ESP32-DIV, … (needs 8 MB+). |
 | **Out of scope (not an ESP32 boot-gate problem)** | Non-ESP32 targets: RTL8720/BW16 (Realtek AmebaD), Flipper Zero (STM32), Raspberry Pi SD images, Orbic/ADB. |
 
-The **Guardian** variant is firmware-agnostic — it gates boot at the `factory` partition and jumps to whatever
+The **Guardian** variant is firmware-agnostic: it gates boot at the `factory` partition and jumps to whatever
 firmware lives in `ota_0`, so adding a new *ESP32* firmware needs no source changes (see the matrix doc §4).
 The **Fork** variant integrates directly into ESP32 Marauder for tighter coupling and fits 4 MB. Adding a new
 *chip* means adding its ROM-SPI entry points + partition offsets; adding a non-ESP32 *platform* means a
@@ -110,11 +111,11 @@ separate, platform-native mechanism, not a port of this gate.
 
 ## Variants
 
-### Fork *(default — all flash sizes, including 4 MB)*
+### Fork *(default, all flash sizes including 4 MB)*
 The gate is compiled **into** a fork of ESP32Marauder and called early from `setup()`, reusing Marauder's own display/keyboard/SD drivers so the password prompt works on every hardware class with almost no new UI code. Self-destruct erases every other partition, the SD, and finally its own boot chain.
 
-### Guardian *(firmware-agnostic — 8 MB+ only)*
-A separate tiny **factory** app gates boot, then sets the boot partition and restarts into an **unmodified** firmware in `ota_0`. This gives a cleaner GPL boundary and a cleaner brick (the gate is not erasing its own running region until the very end, and can re-assert via factory fallback). It does not fit in 4 MB — 8 MB minimum, 16 MB preferred.
+### Guardian *(firmware-agnostic, 8 MB+ only)*
+A separate tiny **factory** app gates boot, then sets the boot partition and restarts into an **unmodified** firmware in `ota_0`. This gives a cleaner GPL boundary and a cleaner brick (the gate is not erasing its own running region until the very end, and can re-assert via factory fallback). It does not fit in 4 MB: 8 MB minimum, 16 MB preferred.
 
 ---
 
@@ -130,23 +131,23 @@ Secure Boot v2 + Flash Encryption release mode + `brick=1`. The gate cannot be r
 
 ## Safety: SAFE_MODE by default
 
-Every build script and CI job defaults to `SUICIDE_SAFE_MODE=1`. In SAFE_MODE the entire detect → arm → trigger → erase chain runs against a dedicated **scratch** partition with a dummy key and only **logs** the simulated destruction — it never touches a live partition. If a SAFE_MODE build's partition table has no `scratch` partition, the firmware refuses to simulate (it logs an error and performs **zero** erases).
+Every build script and CI job defaults to `SUICIDE_SAFE_MODE=1`. In SAFE_MODE the entire detect → arm → trigger → erase chain runs against a dedicated **scratch** partition with a dummy key and only **logs** the simulated destruction. It never touches a live partition. If a SAFE_MODE build's partition table has no `scratch` partition, the firmware refuses to simulate (it logs an error and performs **zero** erases).
 
-A real destruct chain requires explicitly passing `--no-safe-mode`, and a live-brick build requires `--allow-live-brick` on top of that. **CI never produces a live-brick build** — the Stage-3 self-erase-of-the-running-app primitive is the one UNVERIFIED capability and is only ever exercised by hand on a sacrificial board (see [`docs/SPIKE-PLAN.md`](docs/SPIKE-PLAN.md)).
+A real destruct chain requires explicitly passing `--no-safe-mode`, and a live-brick build requires `--allow-live-brick` on top of that. **CI never produces a live-brick build.** The Stage-3 self-erase-of-the-running-app primitive is the one UNVERIFIED capability, and it is only ever exercised by hand on a sacrificial board (see [`docs/SPIKE-PLAN.md`](docs/SPIKE-PLAN.md)).
 
 ---
 
 ## 🚀 Quickstart
 
-1. **Read the safety docs first** — [`docs/SAFETY.md`](docs/SAFETY.md), [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
-2. **Understand the contract** — [`docs/SPEC.md`](docs/SPEC.md) is the single source of truth for names, NVS keys, offsets, build flags, and the state machine.
-3. **Build in SAFE MODE** — `scripts/build.ps1` (Windows) or `scripts/build.sh` (Linux/macOS), which default to `SUICIDE_SAFE_MODE=1`:
+1. **Read the safety docs first:** [`docs/SAFETY.md`](docs/SAFETY.md), [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
+2. **Understand the contract.** [`docs/SPEC.md`](docs/SPEC.md) is the single source of truth for names, NVS keys, offsets, build flags, and the state machine.
+3. **Build in SAFE MODE.** Use `scripts/build.ps1` (Windows) or `scripts/build.sh` (Linux/macOS), which default to `SUICIDE_SAFE_MODE=1`:
    ```sh
    ./scripts/build.sh --board esp32 --variant fork --tier T1
    ```
    Options: `--board {esp32|esp32s2|esp32s3|esp32c3|esp32c6}`, `--variant {fork|guardian}`, `--tier {T1|T2}`, `--input {serial|touch|mini_kb|cardputer|buttons}`, `--backend {arduino-cli|pio}`.
-4. **Provision a device** — `host/provision.py` (password via stdin/getpass, **never argv**) produces a `guardcfg.bin` NVS image, a `bundle.json` flash manifest, and (Guardian only) a blank `otadata.bin`.
-5. **Flash** — either via CI bundle artifacts, or through [Cyber Controller](https://github.com/LxveAce/cyber-controller), the host that carries the provisioned bundle to the board.
+4. **Provision a device.** `host/provision.py` (password via stdin/getpass, **never argv**) produces a `guardcfg.bin` NVS image, a `bundle.json` flash manifest, and (Guardian only) a blank `otadata.bin`.
+5. **Flash.** Either via CI bundle artifacts, or through [Cyber Controller](https://github.com/LxveAce/cyber-controller), the host that carries the provisioned bundle to the board.
 
 The host provisioner needs only the Python 3.9+ standard library for everything security-relevant; its one external dependency is the NVS partition image generator (`esp-idf-nvs-partition-gen`, pinned in [`host/requirements.txt`](host/requirements.txt)).
 
@@ -154,7 +155,7 @@ The host provisioner needs only the Python 3.9+ standard library for everything 
 
 ## Cyber Controller integration
 
-Dead Man's Switch is built to be vendored into [Cyber Controller](https://github.com/LxveAce/cyber-controller) as a **git submodule** — Cyber Controller imports `host/provision.py` directly. Through it you get:
+Dead Man's Switch is built to be vendored into [Cyber Controller](https://github.com/LxveAce/cyber-controller) as a **git submodule**. Cyber Controller imports `host/provision.py` directly. Through it you get:
 
 - Remote status monitoring via the serial dashboard (arm/disarm is applied by re-provisioning, not a runtime toggle).
 - Host-side password provisioning (plaintext never touches the device).
@@ -169,14 +170,14 @@ The plain-Marauder flash path stays unchanged, and every duress control is behin
 | Project | What it is |
 |---|---|
 | **[Cyber Controller](https://github.com/LxveAce/cyber-controller)** | The flagship flash-and-control app. Vendors this repo as a submodule and does the host-side provisioning + one-click flash. Site: [cybercontroller.org](https://cybercontroller.org). |
-| **[Headless Marauder GUI](https://github.com/LxveAce/headless-marauder-gui)** | Standalone Marauder controller + multi-firmware flasher. A sibling project — it stays standalone, with no dead-man coupling. |
+| **[Headless Marauder GUI](https://github.com/LxveAce/headless-marauder-gui)** | Standalone Marauder controller + multi-firmware flasher. A sibling project that stays standalone, with no dead-man coupling. |
 | **[Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder)** | The predecessor this project grew out of. Superseded here; kept for lineage. |
 
 ---
 
 ## 🔒 Security
 
-Found a way past the gate, or a way to pull the password? Email **lxveace@proton.me** — please don't open a public issue for anything security-sensitive. The reporting process, scope (gate bypass, password extraction, incomplete wipe), and what's explicitly out of scope are in [`SECURITY.md`](SECURITY.md).
+Found a way past the gate, or a way to pull the password? Email **lxveace@proton.me**. Please don't open a public issue for anything security-sensitive. The reporting process, scope (gate bypass, password extraction, incomplete wipe), and what's explicitly out of scope are in [`SECURITY.md`](SECURITY.md).
 
 Design posture in one line: unprovisioned or disarmed boards can never wipe, plaintext passwords are hashed host-side and never stored or transmitted, and the attempt counter fails closed. The threat model is spelled out in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
 
@@ -192,7 +193,7 @@ pip install -r requirements.txt
 pytest
 ```
 
-They cover the provisioner — argv-safety (passwords never on a command line), fail-closed provisioning, and per-chip bootloader-offset resolution. Firmware changes have to keep the [`docs/SPEC.md`](docs/SPEC.md) contract intact; it's the source of truth every layer conforms to. Details in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+They cover the provisioner: argv-safety (passwords never on a command line), fail-closed provisioning, and per-chip bootloader-offset resolution. Firmware changes have to keep the [`docs/SPEC.md`](docs/SPEC.md) contract intact; it's the source of truth every layer conforms to. Details in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 
@@ -236,11 +237,11 @@ deadmans-switch/
 
 ## 🙏 Credits & license
 
-Built on **[ESP32Marauder](https://github.com/justcallmekoko/ESP32Marauder)** by **justcallmekoko** — the display/keyboard/SD drivers and the entire base firmware are theirs. This project is an additive, owner-only defensive layer on top of that work. Nothing upstream is vendored into this repo; the Fork variant is applied against a pinned ESP32Marauder checkout.
+Built on **[ESP32Marauder](https://github.com/justcallmekoko/ESP32Marauder)** by **justcallmekoko**. The display/keyboard/SD drivers and the entire base firmware are theirs. This project is an additive, owner-only defensive layer on top of that work. Nothing upstream is vendored into this repo; the Fork variant is applied against a pinned ESP32Marauder checkout.
 
-Originally developed as **[Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder)** — the first ESP32 anti-forensic wipe system with boot password gating, automatic wipe on failed attempts, and a hardware dead-man switch. Dead Man's Switch is the universal successor with expanded board and firmware support.
+Originally developed as **[Suicide Marauder](https://github.com/LxveAce/Suicide-Marauder)**, the first ESP32 anti-forensic wipe system with boot password gating, automatic wipe on failed attempts, and a hardware dead-man switch. Dead Man's Switch is the universal successor with expanded board and firmware support.
 
-Released under the **[MIT License](LICENSE)**. ESP32Marauder is MIT; distribution notes for the LGPL components statically linked in (e.g. ESPAsyncWebServer) are tracked in [`docs/LICENSING.md`](docs/LICENSING.md) — read it before redistributing any binaries.
+Released under the **[MIT License](LICENSE)**. ESP32Marauder is MIT; distribution notes for the LGPL components statically linked in (e.g. ESPAsyncWebServer) are tracked in [`docs/LICENSING.md`](docs/LICENSING.md). Read it before redistributing any binaries.
 
 ---
 
@@ -252,4 +253,4 @@ Released under the **[MIT License](LICENSE)**. ESP32Marauder is MIT; distributio
 
 Built by LxveAce · a LxveLabs project
 
-Hardware supported by PCBWay — LxveLabs is developing a board in collaboration with [PCBWay](https://www.pcbway.com).
+Hardware supported by PCBWay. LxveLabs is developing a board in collaboration with [PCBWay](https://www.pcbway.com).
