@@ -249,7 +249,15 @@ def read_password_securely(confirm=True):
         pw2 = None
     buf = bytearray(pw1.encode("utf-8"))
     pw1 = None
-    validate_password(buf)  # reject >63 bytes / leading-ws / `unlock ` BEFORE we proceed (clear error)
+    # validate_password rejects >63 bytes / leading-ws / `unlock ` BEFORE we proceed (clear error).
+    # On a rejection it raises before returning, so the caller never gets `buf` back to zeroize —
+    # scrub the plaintext here on that path so a rejected password can't linger in memory (the same
+    # zeroize-on-error guarantee build_bundle already makes).
+    try:
+        validate_password(buf)
+    except BaseException:
+        _zeroize(buf)
+        raise
     return buf
 
 

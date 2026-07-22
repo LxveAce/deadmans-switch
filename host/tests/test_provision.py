@@ -434,6 +434,32 @@ def test_build_bundle_zeroizes_password_on_error_path(tmp_path):
     assert bytes(pw) == b"\x00" * len(secret)   # fully zeroized despite the early raise
 
 
+def test_read_password_zeroizes_on_validation_failure(monkeypatch):
+    """read_password_securely builds the plaintext bytearray, then validate_password can raise
+    (>63 bytes / leading-ws / `unlock `) BEFORE it returns buf to the caller. On that path the
+    caller never receives buf to scrub, so read_password_securely must zeroize it itself — else the
+    plaintext of a rejected password lingers in the freed heap allocation."""
+    import getpass
+
+    toolong = "a" * (provision.SUICIDE_PW_MAX_BYTES + 1)   # 64 bytes -> validate_password rejects
+    monkeypatch.setattr(getpass, "getpass", lambda *a, **k: toolong)
+
+    captured = {}
+    real_validate = provision.validate_password
+
+    def spy(buf):
+        captured["buf"] = buf          # the same object read_password_securely will scrub on raise
+        return real_validate(buf)      # raises ProvisionError for >63 bytes
+
+    monkeypatch.setattr(provision, "validate_password", spy)
+
+    with pytest.raises(provision.ProvisionError):
+        provision.read_password_securely(confirm=False)
+
+    assert "buf" in captured           # validate_password was actually reached
+    assert bytes(captured["buf"]) == b"\x00" * len(toolong)   # plaintext scrubbed despite the raise
+
+
 def test_zeroize_helper_scrubs_and_tolerates_immutable():
     buf = bytearray(b"secret")
     provision._zeroize(buf)
