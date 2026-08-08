@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Work on `master` since v1.0.0. Not cut to a release yet.
+
+### Security
+
+- Zeroize the password buffer on every `build_bundle` exit path, and make the nvs-gen `SystemExit` fallback real so a failed generation can't leave secret material in memory.
+- Scrub the password buffer when provisioning validation rejects it, instead of only on the success path.
+- Reject passwords that collide with the `wipe` and `sm_` command prefixes at provisioning time, so a chosen password can't shadow a serial command.
+
+### Fixed
+
+- Report the released version in `SM_INFO` — the firmware advertised 1.1.0 while the release was 1.0.0 (PF-8).
+- Register the suicide partition CSV into the ESP32 core dir and drop the bogus `build.custom_partitions`, matching `build.sh` so `build.ps1` produces the same layout.
+- Reconcile the serial-command contract in the docs with `GateInput_serial.cpp`.
+- Repair the firmware build CI: stage the boot-gate sources into the sketch dir, build GUARDIAN against bootgate as a proper Arduino `--library`, and register the custom partition CSV so the core and all bootgate objects link. The standalone firmware build is marked best-effort and non-blocking (known arduino-esp32 3.x core/IDF link issue, diagnosed in `docs/CI-STATUS.md`).
+- Make `apply_hook.sh` actually integrate the gate; make `build.ps1` runnable on PowerShell 5.1.
+
+### Added
+
+- Stdlib pytest suite for `provision.py`, plus CI gating for the host provisioner tests and guardcfg size-guard tests.
+- Firmware/board coverage matrix against Cyber Controller, including C5 provisioning.
+- Canonical `DISCLAIMER.md` with acceptable-use terms (authorized lawful use, as-is / no-warranty / no-liability, not legal advice), linked from the README.
+- `.gitattributes` to force LF for shell scripts and CRLF for `.ps1`, for CI robustness across platforms.
+
+### Changed
+
+- Renamed the human-facing name from "Suicide Marauder" to "Dead Man's Switch" across host tooling and firmware strings.
+- Named the release provisioner binary `deadmans-switch-provisioner`.
+- Overhauled the README to the LxveLabs standard (accuracy, contact, structure), surfaced the PCBWay hardware collaboration, and moved to LxveLabs contacts (discord.gg/lxvelabs, Proton emails, lxvelabs.com) plus a GitHub Sponsors link.
+- Removed internal planning and session logs from the public repo, scrubbed hardcoded local paths, and did a voice pass on the prose. Every fact, version, license, and attribution is unchanged.
+
 ## [1.0.0] — 2026-06-11
 
 ### Added
