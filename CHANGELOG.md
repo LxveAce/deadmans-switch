@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Work on `master` since v1.0.0. Not cut to a release yet.
+## [1.0.1] — 2026-08-08
 
 ### Security
 
@@ -60,4 +60,6 @@ Work on `master` since v1.0.0. Not cut to a release yet.
 - **Partition table templates** — 4 MB, 8 MB, 16 MB, and Guardian 16 MB partition layouts.
 - **Comprehensive documentation** — SPEC.md (canonical contract), SAFETY.md, THREAT-MODEL.md, HARDWARE.md (wiring guides), PROVISIONING.md, ARCHITECTURE.md, RESEARCH-DIGEST.md, SPIKE-PLAN.md, HARDWARE-TEST.md, LICENSING.md.
 
+[Unreleased]: https://github.com/LxveAce/deadmans-switch/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/LxveAce/deadmans-switch/releases/tag/v1.0.1
 [1.0.0]: https://github.com/LxveAce/deadmans-switch/releases/tag/v1.0.0
