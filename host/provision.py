@@ -957,6 +957,12 @@ def main(argv=None):
             print("  fast_wipe=1 (SD wipe SKIPPED on trigger — flash erase + brick only)")
         if args.armed == 1:
             print("  *** WARNING: armed=1. This board WILL self-destruct on trigger conditions. ***")
+            if args.deadman == 1:
+                print("  *** DEADMAN=1 (default): the dead-man check runs BEFORE the password is asked. If the")
+                print("      arming line (pin %d) is NOT physically wired and HELD at arm_level=%d, it reads"
+                      % (args.arm_pin, args.arm_level))
+                print("      NOT-ARMED and this board WILL WIPE on the NEXT BOOT even with the correct password.")
+                print("      Wire + hold the arming switch before rebooting, or provision with --deadman 0. ***")
         return 0
 
     except ProvisionError as exc:
