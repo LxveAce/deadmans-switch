@@ -22,6 +22,7 @@
 #ifdef GATE_INPUT_SERIAL
 
 #include "GateInput.h"
+#include "SmCommand.h"
 #include <Arduino.h>
 #include <string.h>
 
@@ -237,50 +238,46 @@ void sendInfo(const GateConfig& cfg) {
   Serial.println(F("\"}"));
 }
 
-// Process a dashboard command line. Returns true if the line was a recognized SM_ command
-// (handled here); false if it should be passed to the normal password extraction flow.
-bool processCommand(const char* trimmed, const GateConfig& cfg) {
-  if (startsWithCmd(trimmed, "sm_status", 9) &&
-      (trimmed[9] == '\0' || trimmed[9] == ' ')) {
-    sendStatus(cfg);
-    return true;
+// Process a dashboard command line. Classification is delegated to the pure classifySmCommand()
+// (SmCommand.h) so the decision is unit-testable and cannot be conflated with the Serial I/O; this
+// function performs the side effects and returns a TRI-STATE (SmDispatch) so the caller can tell a
+// deliberate wipe from an unrecognized line. SPEC §6.1: only a clean `sm_wipe` is a WipeRequest; an
+// unrecognized `sm_` line is Unknown (the caller rejects + re-prompts, never wipes, never an attempt).
+SmDispatch processCommand(const char* trimmed, const GateConfig& cfg) {
+  switch (classifySmCommand(trimmed)) {
+    case SmCommand::Status:
+      sendStatus(cfg);
+      return SmDispatch::Handled;
+    case SmCommand::Info:
+      sendInfo(cfg);
+      return SmDispatch::Handled;
+    case SmCommand::Arm:
+      // ARM requires re-provisioning from the host (the armed flag is in the guardcfg NVS image).
+      // We cannot modify it at runtime without the host provisioner. Report this.
+      Serial.println(F("SM>{\"cmd\":\"ARM\",\"error\":\"arming requires re-provisioning from host "
+                       "(provision.py --armed 1). Cannot modify guardcfg NVS at runtime.\"}"));
+      return SmDispatch::Handled;
+    case SmCommand::Disarm:
+      // DISARM also requires re-provisioning. The armed flag is baked into the NVS image.
+      Serial.println(F("SM>{\"cmd\":\"DISARM\",\"error\":\"disarming requires re-provisioning from host "
+                       "(provision.py --armed 0). Cannot modify guardcfg NVS at runtime.\"}"));
+      return SmDispatch::Handled;
+    case SmCommand::SetPassword:
+      // Password change requires re-provisioning (new salt + hash).
+      Serial.println(F("SM>{\"cmd\":\"SET_PASSWORD\",\"error\":\"password change requires re-provisioning "
+                       "from host (provision.py). Cannot modify guardcfg NVS at runtime.\"}"));
+      return SmDispatch::Handled;
+    case SmCommand::Wipe:
+      // The deliberate SM_WIPE maps to the existing authenticated `wipe` flow. We announce the
+      // redirect and hand off; the caller prompts for the password and only a correct one wipes.
+      Serial.println(F("SM>{\"cmd\":\"WIPE\",\"status\":\"redirecting to authenticated wipe flow\"}"));
+      return SmDispatch::WipeRequest;
+    case SmCommand::Unknown:
+    default:
+      // Typo / unknown-or-future command / mangled keyword. The caller rejects it — NEVER the wipe
+      // path, NEVER counted as a password attempt (SPEC §6.1).
+      return SmDispatch::Unknown;
   }
-  if (startsWithCmd(trimmed, "sm_info", 7) &&
-      (trimmed[7] == '\0' || trimmed[7] == ' ')) {
-    sendInfo(cfg);
-    return true;
-  }
-  if (startsWithCmd(trimmed, "sm_arm", 6) &&
-      (trimmed[6] == '\0' || trimmed[6] == ' ')) {
-    // ARM requires re-provisioning from the host (the armed flag is in the guardcfg NVS image).
-    // We cannot modify it at runtime without the host provisioner. Report this.
-    Serial.println(F("SM>{\"cmd\":\"ARM\",\"error\":\"arming requires re-provisioning from host "
-                     "(provision.py --armed 1). Cannot modify guardcfg NVS at runtime.\"}"));
-    return true;
-  }
-  if (startsWithCmd(trimmed, "sm_disarm", 9) &&
-      (trimmed[9] == '\0' || trimmed[9] == ' ')) {
-    // DISARM also requires re-provisioning. The armed flag is baked into the NVS image.
-    Serial.println(F("SM>{\"cmd\":\"DISARM\",\"error\":\"disarming requires re-provisioning from host "
-                     "(provision.py --armed 0). Cannot modify guardcfg NVS at runtime.\"}"));
-    return true;
-  }
-  if (startsWithCmd(trimmed, "sm_set_password", 15) &&
-      (trimmed[15] == '\0' || trimmed[15] == ' ')) {
-    // Password change requires re-provisioning (new salt + hash).
-    Serial.println(F("SM>{\"cmd\":\"SET_PASSWORD\",\"error\":\"password change requires re-provisioning "
-                     "from host (provision.py). Cannot modify guardcfg NVS at runtime.\"}"));
-    return true;
-  }
-  if (startsWithCmd(trimmed, "sm_wipe", 7) &&
-      (trimmed[7] == '\0' || trimmed[7] == ' ')) {
-    // SM_WIPE is mapped to the existing `wipe` command flow — password-authenticated.
-    Serial.println(F("SM>{\"cmd\":\"WIPE\",\"status\":\"redirecting to authenticated wipe flow\"}"));
-    // Fall through to the normal wipe handler by returning false and letting the caller
-    // see "wipe" as the command. We rewrite the intent so the standard wipe path handles it.
-    return false;  // caller will re-process as "wipe"
-  }
-  return false;  // not a dashboard command
 }
 
 }  // namespace dashboard
@@ -299,18 +296,26 @@ InputResult Input::getPassword(const GateConfig& cfg) {
   const char* p = line;
   while (*p == ' ' || *p == '\t') ++p;
 
-  // Dashboard integration: check for SM_ commands first. These are handled without counting as
-  // password attempts and return got=false so BootGate re-prompts. SM_WIPE falls through to the
-  // normal wipe handler below.
+  // Dashboard integration: check for SM_ commands first. These never count as password attempts and
+  // return got=false so BootGate re-prompts. The tri-state dispatch is the W1 misfire fix: ONLY a
+  // clean SM_WIPE is routed into the wipe flow; an unrecognized SM_ line is rejected and re-prompted
+  // (SPEC §6.1) instead of being silently dropped into the authenticated wipe prompt.
   if (startsWithCmd(p, "sm_", 3)) {
-    bool handled = dashboard::processCommand(p, cfg);
-    if (handled) {
-      secureZero(line, sizeof(line));
-      return r;  // got=false — re-prompt, not a password attempt
+    switch (dashboard::processCommand(p, cfg)) {
+      case dashboard::SmDispatch::Handled:
+        secureZero(line, sizeof(line));
+        return r;  // got=false — re-prompt, not a password attempt
+      case dashboard::SmDispatch::WipeRequest:
+        p = "wipe";  // deliberate SM_WIPE only — fall through to the authenticated wipe handler
+        break;
+      case dashboard::SmDispatch::Unknown:
+      default:
+        // Typo / unknown / mangled sm_ line: reject and re-prompt. Never the wipe path, never an
+        // attempt (SPEC §6.1 — recognized-but-deferred error reply).
+        Serial.println(F("SM>{\"error\":\"unknown command\"}"));
+        secureZero(line, sizeof(line));
+        return r;  // got=false — re-prompt, not a password attempt, no wipe
     }
-    // SM_WIPE was not fully handled — it falls through to the standard wipe flow below.
-    // Rewrite p to point to "wipe" so the existing wipe handler picks it up.
-    p = "wipe";
   }
 
   // `wipe` -> AUTHENTICATED host-assisted self-destruct (SPEC §6). We must NOT set wipeRequest
